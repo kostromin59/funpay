@@ -93,7 +93,7 @@ func (r *Request) SetContext(ctx context.Context) *Request {
 //
 // Otherwise returns nil and error.
 func (r *Request) Do() (*http.Response, error) {
-	const op = "request.Do"
+	const op = "Request.Do"
 
 	c := http.DefaultClient
 
