@@ -9,12 +9,13 @@ import (
 	"time"
 )
 
-// Request constants define default values and header/cookie names.
 const (
-	RequestDefaultMethod   = http.MethodGet  // Default HTTP method for requests.
-	RequestDefaultTimeout  = 1 * time.Minute // Default request timeout duration for context.
-	RequestUserAgentHeader = "User-Agent"    // User-Agent header name.
-	RequestGoldenKeyCookie = "golden_key"    // Golden key cookie name.
+	RequestDefaultMethod     = http.MethodGet     // Default HTTP method for requests.
+	RequestDefaultTimeout    = 1 * time.Minute    // Default request timeout duration for context.
+	RequestUserAgentHeader   = "User-Agent"       // User-Agent header name.
+	RequestContentTypeHeader = "Content-Type"     // Content-Type header name.
+	RequestJSONContentType   = "application/json" // application/json value for Content-Type header.
+	RequestGoldenKeyCookie   = "golden_key"       // Golden key cookie name.
 )
 
 var (
