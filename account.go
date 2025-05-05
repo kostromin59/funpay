@@ -33,26 +33,32 @@ func NewAccount(goldenKey, userAgent string) *Account {
 }
 
 // GoldenKey returns the account's authentication token.
-func (r *Account) GoldenKey() string {
-	r.mu.RLock()
-	gk := r.goldenKey
-	r.mu.RUnlock()
+func (a *Account) GoldenKey() string {
+	a.mu.RLock()
+	gk := a.goldenKey
+	a.mu.RUnlock()
 	return gk
 }
 
 // UserAgent returns the User-Agent string used for requests.
-func (r *Account) UserAgent() string {
-	r.mu.RLock()
-	ua := r.userAgent
-	r.mu.RUnlock()
+func (a *Account) UserAgent() string {
+	a.mu.RLock()
+	ua := a.userAgent
+	a.mu.RUnlock()
 	return ua
 }
 
 // Cookies returns a safe copy of all session cookies.
-func (r *Account) Cookies() []*http.Cookie {
-	r.mu.RLock()
-	c := make([]*http.Cookie, len(r.cookies))
-	copy(c, r.cookies)
-	r.mu.RUnlock()
+func (a *Account) Cookies() []*http.Cookie {
+	a.mu.RLock()
+	c := make([]*http.Cookie, len(a.cookies))
+	copy(c, a.cookies)
+	a.mu.RUnlock()
 	return c
+}
+
+func (a *Account) SetCookies(cookies []*http.Cookie) {
+	a.mu.Lock()
+	a.cookies = cookies
+	a.mu.Unlock()
 }
