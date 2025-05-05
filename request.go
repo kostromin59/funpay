@@ -11,10 +11,10 @@ import (
 
 // Request constants define default values and header/cookie names.
 const (
-	RequestDefaultMethod   = http.MethodGet  // Default HTTP method for requests
-	RequestDefaultTimeout  = 1 * time.Minute // Default request timeout duration for context
-	RequestUserAgentHeader = "User-Agent"    // User-Agent header name
-	RequestGoldenKeyCookie = "golden_key"    // Golden key cookie name
+	RequestDefaultMethod   = http.MethodGet  // Default HTTP method for requests.
+	RequestDefaultTimeout  = 1 * time.Minute // Default request timeout duration for context.
+	RequestUserAgentHeader = "User-Agent"    // User-Agent header name.
+	RequestGoldenKeyCookie = "golden_key"    // Golden key cookie name.
 )
 
 var (
@@ -44,7 +44,7 @@ type Request struct {
 }
 
 // NewRequest creates new API request with default GET method (see [RequestDefaultMethod]).
-// You must provide full url.
+// You must provide full url. Use [FunpayURL] as base of url.
 func NewRequest(account *Account, url string) *Request {
 	return &Request{
 		account: account,
