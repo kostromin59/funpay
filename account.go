@@ -130,6 +130,7 @@ func (a *Account) Update(ctx context.Context) error {
 	a.csrfToken = appData.CSRFToken
 	a.userID = appData.UserID
 	a.username = username
+	a.cookies = resp.Cookies()
 
 	return nil
 }
