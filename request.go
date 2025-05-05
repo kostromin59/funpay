@@ -79,7 +79,7 @@ func (r *Request) SetHeaders(headers map[string]string) *Request {
 }
 
 // SetContext sets context for request cancellation.
-// Default context uses [RequestDefaultTimeout] timeout.
+// Default context uses [RequestDefaultTimeout] (1 minute) timeout.
 func (r *Request) SetContext(ctx context.Context) *Request {
 	r.ctx = ctx
 	return r
