@@ -57,6 +57,7 @@ func (a *Account) Cookies() []*http.Cookie {
 	return c
 }
 
+// SetCookies updates the account's session cookies.
 func (a *Account) SetCookies(cookies []*http.Cookie) {
 	a.mu.Lock()
 	a.cookies = cookies
