@@ -1,51 +1,91 @@
 package funpay
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
+	"time"
 )
 
 const (
+	RequestDefaultMethod  = http.MethodGet
+	RequestDefaultTimeout = 1 * time.Minute
+
 	RequestUserAgentHeader = "User-Agent"
 
 	RequestGoldenKeyCookie = "golden_key"
 )
 
 type Request struct {
-	*http.Request
+	url     string
+	method  string
+	body    io.Reader
+	cookies []*http.Cookie
+	headers map[string]string
+
 	account *Account
+	ctx     context.Context
 }
 
-func NewRequest(account *Account, method, path string, body io.Reader) (*Request, error) {
-	const op = "request.NewRequest"
-
-	reqURL, err := url.Parse(FunpayURL)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", op, err)
+func NewRequest(account *Account, url string) *Request {
+	return &Request{
+		account: account,
+		url:     url,
+		method:  RequestDefaultMethod,
 	}
+}
 
-	reqURL = reqURL.JoinPath(path)
+func (r *Request) SetMethod(method string) *Request {
+	r.method = method
+	return r
+}
 
-	rawReq, err := http.NewRequest(method, reqURL.String(), body)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", op, err)
-	}
+func (r *Request) SetBody(body io.Reader) *Request {
+	r.body = body
+	return r
+}
 
-	req := &Request{
-		rawReq,
-		account,
-	}
+func (r *Request) SetCookies(cookies []*http.Cookie) *Request {
+	r.cookies = cookies
+	return r
+}
 
-	return req, nil
+func (r *Request) SetHeaders(headers map[string]string) *Request {
+	r.headers = headers
+	return r
+}
+
+func (r *Request) SetContext(ctx context.Context) *Request {
+	r.ctx = ctx
+	return r
 }
 
 func (r *Request) Do() (*http.Response, error) {
 	const op = "request.Do"
 
+	c := http.DefaultClient
+
+	ctx := context.Background()
+	if r.ctx != nil {
+		ctx = r.ctx
+	}
+
+	req, err := http.NewRequestWithContext(ctx, r.method, r.url, r.body)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+
+	for _, c := range r.cookies {
+		req.AddCookie(c)
+	}
+
+	for name, value := range r.headers {
+		req.Header.Add(name, value)
+	}
+
 	for _, c := range r.account.Cookies() {
-		r.AddCookie(c)
+		req.AddCookie(c)
 	}
 
 	goldenKeyCookie := &http.Cookie{
@@ -57,12 +97,10 @@ func (r *Request) Do() (*http.Response, error) {
 		Secure:   true,
 	}
 
-	r.AddCookie(goldenKeyCookie)
-	r.Header.Set(RequestUserAgentHeader, r.account.UserAgent())
+	req.AddCookie(goldenKeyCookie)
+	req.Header.Set(RequestUserAgentHeader, r.account.UserAgent())
 
-	c := http.DefaultClient
-
-	resp, err := c.Do(r.Request)
+	resp, err := c.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
