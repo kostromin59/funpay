@@ -92,13 +92,20 @@ func (a *Account) Username() string {
 	return username
 }
 
+func (a *Account) UserID() int64 {
+	a.mu.RLock()
+	userID := a.userID
+	a.mu.RUnlock()
+	return userID
+}
+
 // Update making a request to get account info.
 // Loads userID, username, cookies, csrfToken.
 // You should update account info every 40-60 minutes.
 func (a *Account) Update(ctx context.Context) error {
 	const op = "Account.Update"
 
-	resp, err := NewRequest(a, FunpayURL).SetContext(ctx).Do()
+	resp, err := NewRequest(a, BaseURL).SetContext(ctx).Do()
 	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)
 	}
