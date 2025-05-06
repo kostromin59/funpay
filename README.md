@@ -9,13 +9,16 @@ Go library for [Funpay](https://funpay.com/).
 
 > This list may grow while developing.
 
-- [X] Utilites
+- [X] Requests
   - [X] Request with account data
-  - [X] Representation of user account
   - [ ] Proxy support in requests
 - [ ] Account
-  - [ ] Info (in progress)
-  - [ ] Updating cookies
+  - [X] Info
+    - [X] Username
+    - [X] Balance (from badge)
+  - [X] Updating cookies
+  - [X] CSRF Token
+  - [X] Substituting base url (for testing)
   - [ ] Proxy support
 - [ ] Messages
   - [ ] Getting all messages
