@@ -86,6 +86,7 @@ func (a *Account) SetCookies(cookies []*http.Cookie) {
 	a.mu.Unlock()
 }
 
+// CSRFToken returns the current CSRF token used for request protection.
 func (a *Account) CSRFToken() string {
 	a.mu.RLock()
 	csrfToken := a.csrfToken
@@ -93,6 +94,7 @@ func (a *Account) CSRFToken() string {
 	return csrfToken
 }
 
+// Username returns the login name of the Funpay account.
 func (a *Account) Username() string {
 	a.mu.RLock()
 	username := a.username
@@ -100,6 +102,8 @@ func (a *Account) Username() string {
 	return username
 }
 
+// UserID returns the unique identifier of the Funpay account.
+// Returns 0 if the account hasn't been updated yet.
 func (a *Account) UserID() int64 {
 	a.mu.RLock()
 	userID := a.userID
@@ -107,6 +111,8 @@ func (a *Account) UserID() int64 {
 	return userID
 }
 
+// Balance returns the current account balance from the badge.
+// Returns 0 if the account hasn't been updated yet or balance is zero.
 func (a *Account) Balance() float64 {
 	a.mu.RLock()
 	balance := a.balance
@@ -114,6 +120,9 @@ func (a *Account) Balance() float64 {
 	return balance
 }
 
+// SetBaseURL sets the base URL for Funpay API requests.
+// This is primarily used for testing purposes to redirect requests to a mock server.
+// Default value is set to [BaseURL] constant when creating a new Account with a [NewAccount] constructor.
 func (a *Account) SetBaseURL(baseURL string) {
 	a.mu.Lock()
 	a.baseURL = baseURL
