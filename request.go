@@ -33,6 +33,13 @@ var (
 	ErrBadStatusCode = errors.New("bad status code")
 )
 
+type RequestAccount interface {
+	GoldenKey() string
+	UserAgent() string
+	Cookies() []*http.Cookie
+	SetCookies([]*http.Cookie)
+}
+
 // Request represents HTTP request builder for Funpay with account credentials.
 type Request struct {
 	url     string
@@ -42,13 +49,13 @@ type Request struct {
 	headers map[string]string
 	proxy   *url.URL
 
-	account *Account
+	account RequestAccount
 	ctx     context.Context
 }
 
 // NewRequest creates new API request with default GET method (see [RequestDefaultMethod]).
 // You must provide full url. Use [BaseURL] as base of url.
-func NewRequest(account *Account, url string) *Request {
+func NewRequest(account RequestAccount, url string) *Request {
 	return &Request{
 		account: account,
 		url:     url,
