@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"time"
 )
 
@@ -39,6 +40,7 @@ type Request struct {
 	body    io.Reader
 	cookies []*http.Cookie
 	headers map[string]string
+	proxy   *url.URL
 
 	account *Account
 	ctx     context.Context
@@ -85,6 +87,13 @@ func (r *Request) SetContext(ctx context.Context) *Request {
 	return r
 }
 
+// SetProxy sets or updates the HTTP proxy for the requests.
+// To remove proxy and make direct connections, pass nil: request.SetProxy(nil)
+func (r *Request) SetProxy(proxy *url.URL) *Request {
+	r.proxy = proxy
+	return r
+}
+
 // Do executes configured request with authentication and updates the account cookies.
 //
 // Returns [*http.Response] and [ErrAccountUnauthorized] if status code equals 403;
@@ -95,7 +104,11 @@ func (r *Request) SetContext(ctx context.Context) *Request {
 func (r *Request) Do() (*http.Response, error) {
 	const op = "Request.Do"
 
+	t := &http.Transport{}
+	t.Proxy = http.ProxyURL(r.proxy)
+
 	c := http.DefaultClient
+	c.Transport = t
 
 	var ctx context.Context
 	if r.ctx != nil {
