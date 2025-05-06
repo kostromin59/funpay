@@ -35,7 +35,14 @@ func TestRequest(t *testing.T) {
 		if resp.StatusCode != http.StatusOK {
 			t.Errorf("Expected status 200, got %d", resp.StatusCode)
 		}
+	})
 
+	t.Run("request creating error", func(t *testing.T) {
+		req := funpay.NewRequest(account, "-").SetMethod(":").SetContext(t.Context())
+		_, err := req.Do()
+		if err == nil {
+			t.Fatal("Expected error, but got nil")
+		}
 	})
 
 	t.Run("POST with body", func(t *testing.T) {
@@ -68,7 +75,6 @@ func TestRequest(t *testing.T) {
 		if resp.StatusCode != http.StatusOK {
 			t.Errorf("Expected status 200, got %d", resp.StatusCode)
 		}
-
 	})
 
 	t.Run("custom cookies", func(t *testing.T) {
@@ -280,6 +286,70 @@ func TestRequest(t *testing.T) {
 			SetContext(t.Context()).
 			SetProxy(proxyURL)
 
+		resp, err := req.Do()
+		if err != nil {
+			t.Fatalf("Do() failed: %v", err)
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			t.Errorf("Expected status 200, got %d", resp.StatusCode)
+		}
+	})
+
+	t.Run("locale handling - EN adds prefix", func(t *testing.T) {
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if !strings.HasPrefix(r.URL.Path, "/en/") {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+		}))
+		defer ts.Close()
+
+		req := funpay.NewRequest(account, ts.URL+"/path")
+		resp, err := req.Do()
+		if err != nil {
+			t.Fatalf("Do() failed: %v", err)
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			t.Errorf("Expected status 200, got %d", resp.StatusCode)
+		}
+	})
+
+	t.Run("locale handling - RU doesn't add prefix", func(t *testing.T) {
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if strings.HasPrefix(r.URL.Path, "/ru/") {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+		}))
+		defer ts.Close()
+
+		req := funpay.NewRequest(account, ts.URL+"/path").SetLocale(funpay.LocaleRU)
+		resp, err := req.Do()
+		if err != nil {
+			t.Fatalf("Do() failed: %v", err)
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			t.Errorf("Expected status 200, got %d", resp.StatusCode)
+		}
+	})
+
+	t.Run("locale handling - updateLocale adds query param", func(t *testing.T) {
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Query().Get("setlocale") != "uk" {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+		}))
+		defer ts.Close()
+
+		req := funpay.NewRequest(account, ts.URL)
+		req.SetLocale(funpay.LocaleUK).UpdateLocale(true)
 		resp, err := req.Do()
 		if err != nil {
 			t.Fatalf("Do() failed: %v", err)
