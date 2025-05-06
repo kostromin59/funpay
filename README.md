@@ -11,15 +11,15 @@ Go library for [Funpay](https://funpay.com/).
 
 - [X] Requests
   - [X] Request with account data
-  - [ ] Proxy support in requests
-- [ ] Account
+  - [X] Proxy support
+- [X] Account
   - [X] Info
     - [X] Username
     - [X] Balance (from badge)
   - [X] Updating cookies
   - [X] CSRF Token
   - [X] Substituting base url (for testing)
-  - [ ] Proxy support
+  - [X] Proxy support
 - [ ] Messages
   - [ ] Getting all messages
   - [ ] Getting new messages

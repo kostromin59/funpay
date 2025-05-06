@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -25,7 +26,7 @@ func TestRequest(t *testing.T) {
 		}))
 		defer ts.Close()
 
-		req := funpay.NewRequest(account, ts.URL)
+		req := funpay.NewRequest(account, ts.URL).SetContext(t.Context())
 		resp, err := req.Do()
 		if err != nil {
 			t.Fatalf("Do() failed: %v", err)
@@ -56,7 +57,8 @@ func TestRequest(t *testing.T) {
 
 		req := funpay.NewRequest(account, ts.URL).
 			SetMethod(http.MethodPost).
-			SetBody(strings.NewReader("test body"))
+			SetBody(strings.NewReader("test body")).
+			SetContext(t.Context())
 
 		resp, err := req.Do()
 		if err != nil {
@@ -81,7 +83,8 @@ func TestRequest(t *testing.T) {
 		defer ts.Close()
 
 		req := funpay.NewRequest(account, ts.URL).
-			SetCookies([]*http.Cookie{{Name: "custom", Value: "value"}})
+			SetCookies([]*http.Cookie{{Name: "custom", Value: "value"}}).
+			SetContext(t.Context())
 
 		resp, err := req.Do()
 		if err != nil {
@@ -105,7 +108,7 @@ func TestRequest(t *testing.T) {
 		defer ts.Close()
 
 		account.SetCookies([]*http.Cookie{{Name: "session", Value: "test"}})
-		req := funpay.NewRequest(account, ts.URL)
+		req := funpay.NewRequest(account, ts.URL).SetContext(t.Context())
 
 		resp, err := req.Do()
 		if err != nil {
@@ -129,7 +132,8 @@ func TestRequest(t *testing.T) {
 		defer ts.Close()
 
 		req := funpay.NewRequest(account, ts.URL).
-			SetHeaders(map[string]string{"X-Custom": "value"})
+			SetHeaders(map[string]string{"X-Custom": "value"}).
+			SetContext(t.Context())
 
 		resp, err := req.Do()
 		if err != nil {
@@ -143,7 +147,8 @@ func TestRequest(t *testing.T) {
 
 	t.Run("request construction error", func(t *testing.T) {
 		req := funpay.NewRequest(account, "://invalid.url").
-			SetMethod("INVALID\nMETHOD")
+			SetMethod("INVALID\nMETHOD").
+			SetContext(t.Context())
 
 		resp, err := req.Do()
 		if err == nil {
@@ -244,6 +249,44 @@ func TestRequest(t *testing.T) {
 		cookies := account.Cookies()
 		if len(cookies) != 1 || cookies[0].Name != "new" {
 			t.Errorf("Expected new cookie, got %v", cookies)
+		}
+	})
+
+	t.Run("proxy connection", func(t *testing.T) {
+		proxyServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Host != "target.example.com" {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+		}))
+		defer proxyServer.Close()
+
+		targetServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			t.Error("Request should not reach target server directly")
+			w.WriteHeader(http.StatusInternalServerError)
+		}))
+		defer targetServer.Close()
+
+		proxyURL, err := url.Parse(proxyServer.URL)
+		if err != nil {
+			t.Fatalf("Failed to parse proxy URL: %v", err)
+		}
+
+		targetURL, _ := url.Parse(targetServer.URL)
+		targetURL.Host = "target.example.com"
+
+		req := funpay.NewRequest(account, targetURL.String()).
+			SetContext(t.Context()).
+			SetProxy(proxyURL)
+
+		resp, err := req.Do()
+		if err != nil {
+			t.Fatalf("Do() failed: %v", err)
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			t.Errorf("Expected status 200, got %d", resp.StatusCode)
 		}
 	})
 }

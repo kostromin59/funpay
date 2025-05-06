@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 
 	"github.com/kostromin59/funpay"
@@ -206,6 +207,50 @@ func TestAccount_Update(t *testing.T) {
 		err := account.Update(t.Context())
 		if err == nil {
 			t.Fatal("expected html parse error, got nil")
+		}
+	})
+
+	t.Run("with proxy", func(t *testing.T) {
+		proxyServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Header.Get("Via") != "test-proxy" {
+				t.Error("request didn't go through proxy")
+			}
+		}))
+		defer proxyServer.Close()
+
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Via", "test-proxy")
+
+			w.Header().Set("Content-Type", "text/html")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`
+            <html>
+                <body data-app-data='{"userId":123,"csrf-token":"test-csrf"}'>
+                    <div class="user-link-name">testuser</div>
+                    <div class="badge-balance">100 ₽</div>
+                </body>
+            </html>
+        `))
+		}))
+		defer ts.Close()
+
+		account := funpay.NewAccount("proxy_key", "test-agent")
+		account.SetBaseURL(ts.URL)
+
+		proxyURL, err := url.Parse(proxyServer.URL)
+		if err != nil {
+			t.Fatalf("failed to parse proxy URL: %v", err)
+		}
+
+		account.SetProxy(proxyURL)
+
+		err = account.Update(t.Context())
+		if err != nil {
+			t.Fatalf("unexpected error with proxy: %v", err)
+		}
+
+		if account.UserID() != 123 {
+			t.Errorf("expected userID 123 with proxy, got %d", account.UserID())
 		}
 	})
 }
