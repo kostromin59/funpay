@@ -41,7 +41,7 @@ func TestRequest(t *testing.T) {
 		req := funpay.NewRequest(account, "-").SetMethod(":").SetContext(t.Context())
 		_, err := req.Do()
 		if err == nil {
-			t.Fatal("Expected error, but got nil")
+			t.Fatal("Expected error, got nil")
 		}
 	})
 
