@@ -14,3 +14,12 @@ type AppData struct {
 	UserID    int64  `json:"userId,omitempty"`
 	Locale    string `json:"locale,omitempty"`
 }
+
+// TODO: doc
+type Locale string
+
+const (
+	LocaleRU Locale = "ru"
+	LocaleEN Locale = "en"
+	LocaleUK Locale = "uk"
+)

@@ -44,17 +44,22 @@ type Account struct {
 	// proxy is an optional HTTP/HTTPS/SOCKS proxy URL for all requests
 	proxy *url.URL
 
+	// TODO: doc
+	locale Locale
+
 	mu sync.RWMutex
 }
 
 // NewAccount creates a new session instance.
 // goldenKey - Funpay authentication token required for API access.
 // userAgent - browser User-Agent string to use for requests.
+// TODO: doc default locale
 func NewAccount(goldenKey, userAgent string) *Account {
 	return &Account{
 		goldenKey: goldenKey,
 		userAgent: userAgent,
 		baseURL:   BaseURL,
+		locale:    LocaleEN,
 	}
 }
 
@@ -147,7 +152,10 @@ func (a *Account) SetBaseURL(baseURL string) {
 func (a *Account) Update(ctx context.Context) error {
 	const op = "Account.Update"
 
-	resp, err := NewRequest(a, a.baseURL).SetContext(ctx).Do()
+	resp, err := NewRequest(a, a.baseURL).
+		SetLocale(a.locale).
+		SetContext(ctx).
+		Do()
 	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)
 	}
