@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -244,6 +245,43 @@ func TestRequest(t *testing.T) {
 		cookies := account.Cookies()
 		if len(cookies) != 1 || cookies[0].Name != "new" {
 			t.Errorf("Expected new cookie, got %v", cookies)
+		}
+	})
+
+	t.Run("proxy connection", func(t *testing.T) {
+		proxyServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Host != "target.example.com" {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+		}))
+		defer proxyServer.Close()
+
+		targetServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			t.Error("Request should not reach target server directly")
+			w.WriteHeader(http.StatusInternalServerError)
+		}))
+		defer targetServer.Close()
+
+		proxyURL, err := url.Parse(proxyServer.URL)
+		if err != nil {
+			t.Fatalf("Failed to parse proxy URL: %v", err)
+		}
+
+		targetURL, _ := url.Parse(targetServer.URL)
+		targetURL.Host = "target.example.com"
+
+		req := funpay.NewRequest(account, targetURL.String()).
+			SetProxy(proxyURL)
+
+		resp, err := req.Do()
+		if err != nil {
+			t.Fatalf("Do() failed: %v", err)
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			t.Errorf("Expected status 200, got %d", resp.StatusCode)
 		}
 	})
 }
