@@ -26,7 +26,7 @@ func TestRequest(t *testing.T) {
 		}))
 		defer ts.Close()
 
-		req := funpay.NewRequest(account, ts.URL)
+		req := funpay.NewRequest(account, ts.URL).SetContext(t.Context())
 		resp, err := req.Do()
 		if err != nil {
 			t.Fatalf("Do() failed: %v", err)
@@ -57,7 +57,8 @@ func TestRequest(t *testing.T) {
 
 		req := funpay.NewRequest(account, ts.URL).
 			SetMethod(http.MethodPost).
-			SetBody(strings.NewReader("test body"))
+			SetBody(strings.NewReader("test body")).
+			SetContext(t.Context())
 
 		resp, err := req.Do()
 		if err != nil {
@@ -82,7 +83,8 @@ func TestRequest(t *testing.T) {
 		defer ts.Close()
 
 		req := funpay.NewRequest(account, ts.URL).
-			SetCookies([]*http.Cookie{{Name: "custom", Value: "value"}})
+			SetCookies([]*http.Cookie{{Name: "custom", Value: "value"}}).
+			SetContext(t.Context())
 
 		resp, err := req.Do()
 		if err != nil {
@@ -106,7 +108,7 @@ func TestRequest(t *testing.T) {
 		defer ts.Close()
 
 		account.SetCookies([]*http.Cookie{{Name: "session", Value: "test"}})
-		req := funpay.NewRequest(account, ts.URL)
+		req := funpay.NewRequest(account, ts.URL).SetContext(t.Context())
 
 		resp, err := req.Do()
 		if err != nil {
@@ -130,7 +132,8 @@ func TestRequest(t *testing.T) {
 		defer ts.Close()
 
 		req := funpay.NewRequest(account, ts.URL).
-			SetHeaders(map[string]string{"X-Custom": "value"})
+			SetHeaders(map[string]string{"X-Custom": "value"}).
+			SetContext(t.Context())
 
 		resp, err := req.Do()
 		if err != nil {
@@ -144,7 +147,8 @@ func TestRequest(t *testing.T) {
 
 	t.Run("request construction error", func(t *testing.T) {
 		req := funpay.NewRequest(account, "://invalid.url").
-			SetMethod("INVALID\nMETHOD")
+			SetMethod("INVALID\nMETHOD").
+			SetContext(t.Context())
 
 		resp, err := req.Do()
 		if err == nil {
@@ -273,6 +277,7 @@ func TestRequest(t *testing.T) {
 		targetURL.Host = "target.example.com"
 
 		req := funpay.NewRequest(account, targetURL.String()).
+			SetContext(t.Context()).
 			SetProxy(proxyURL)
 
 		resp, err := req.Do()
