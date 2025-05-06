@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -39,6 +40,9 @@ type Account struct {
 
 	// balance contains the current balance from the badge
 	balance float64
+
+	// proxy is an optional HTTP/HTTPS/SOCKS proxy URL for all requests
+	proxy *url.URL
 
 	mu sync.RWMutex
 }
@@ -83,6 +87,14 @@ func (a *Account) Cookies() []*http.Cookie {
 func (a *Account) SetCookies(cookies []*http.Cookie) {
 	a.mu.Lock()
 	a.cookies = cookies
+	a.mu.Unlock()
+}
+
+// SetProxy sets or updates the HTTP proxy for the account's requests.
+// To remove proxy and make direct connections, pass nil: account.SetProxy(nil)
+func (a *Account) SetProxy(proxy *url.URL) {
+	a.mu.Lock()
+	a.proxy = proxy
 	a.mu.Unlock()
 }
 
