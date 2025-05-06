@@ -11,7 +11,7 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-// Account represents an authenticated Funpay user session.
+// Account represents an Funpay user session.
 // It stores authorization credentials and session cookies.
 type Account struct {
 	// goldenKey is the account's authentication token
@@ -24,14 +24,13 @@ type Account struct {
 	// csrfToken stores csrf token from the page
 	csrfToken string
 
-	// cookies stores session cookies received from Funpay
-	// to maintain authenticated state
+	// cookies stores cookies received from Funpay
 	cookies []*http.Cookie
 
-	// TODO: doc
+	// userID contains the unique identifier of the Funpay account
 	userID int64
 
-	// TODO: doc
+	// username contains the login name of the Funpay account
 	username string
 
 	mu sync.RWMutex
@@ -94,6 +93,7 @@ func (a *Account) Username() string {
 }
 
 // Update making a request to get account info.
+// Loads userID, username, cookies, csrfToken.
 // You should update account info every 40-60 minutes.
 func (a *Account) Update(ctx context.Context) error {
 	const op = "Account.Update"
