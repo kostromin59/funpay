@@ -57,7 +57,7 @@ type Request struct {
 
 // NewRequest creates new API request with default GET method (see [RequestDefaultMethod]).
 // You must provide full url. Use [BaseURL] as base of url.
-// TODO: update doc for locale
+// Use SetLocale() to use the locale in request and use UpdateLocale() to set new locale via query param. Default locale is [LocaleEN]
 func NewRequest(account RequestAccount, url string) *Request {
 	return &Request{
 		account:      account,
@@ -106,12 +106,13 @@ func (r *Request) SetProxy(proxy *url.URL) *Request {
 	return r
 }
 
-// TODO: doc
+// SetLocale sets the locale for the request.
 func (r *Request) SetLocale(locale Locale) *Request {
 	r.locale = locale
 	return r
 }
 
+// UpdateLocale sending the request via query param setlocale to set new locale.
 func (r *Request) UpdateLocale(update bool) *Request {
 	r.updateLocale = update
 	return r
@@ -122,7 +123,7 @@ func (r *Request) UpdateLocale(update bool) *Request {
 // Returns [*http.Response] and [ErrAccountUnauthorized] if status code equals 403;
 // Returns [*http.Response] and [ErrTooManyRequests] if status code equals 429;
 // Returns [*http.Response] and [ErrBadStatusCode] if status code equals non-2xx.
-//
+
 // Otherwise returns nil and error.
 func (r *Request) Do() (*http.Response, error) {
 	const op = "Request.Do"

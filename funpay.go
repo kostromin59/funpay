@@ -15,7 +15,7 @@ type AppData struct {
 	Locale    string `json:"locale,omitempty"`
 }
 
-// TODO: doc
+// Locale represents the Funpay webiste locale.
 type Locale string
 
 const (

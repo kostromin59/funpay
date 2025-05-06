@@ -44,7 +44,7 @@ type Account struct {
 	// proxy is an optional HTTP/HTTPS/SOCKS proxy URL for all requests
 	proxy *url.URL
 
-	// TODO: doc
+	// locale is an optional locale value for account
 	locale Locale
 
 	mu sync.RWMutex
@@ -53,7 +53,7 @@ type Account struct {
 // NewAccount creates a new session instance.
 // goldenKey - Funpay authentication token required for API access.
 // userAgent - browser User-Agent string to use for requests.
-// TODO: doc default locale
+// Default locale is [LocaleEN]
 func NewAccount(goldenKey, userAgent string) *Account {
 	return &Account{
 		goldenKey: goldenKey,
