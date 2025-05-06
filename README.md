@@ -9,7 +9,7 @@ Go library for [Funpay](https://funpay.com/).
 
 > This list may grow while developing.
 
-- [ ] Requests
+- [X] Requests
   - [X] Request with account data
   - [X] Proxy support
   - [X] Locale support (`setlocale` query param and path param for `en` and `uk`)
