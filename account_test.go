@@ -21,7 +21,7 @@ func TestAccount_Update(t *testing.T) {
 
 			_, _ = w.Write([]byte(`
 				<html>
-					<body data-app-data='{"userId":123,"csrf-token":"test-csrf"}'>
+					<body data-app-data='{"userId":123,"csrf-token":"test-csrf","locale":"ru"}'>
 						<div class="user-link-name">testuser</div>
 						<div class="badge-balance">541 ₽</div>
 					</body>
@@ -56,6 +56,10 @@ func TestAccount_Update(t *testing.T) {
 
 		if len(account.Cookies()) != 2 {
 			t.Error("expected 2 cookies to be set")
+		}
+
+		if account.Locale() != "ru" {
+			t.Errorf("expected Locale 'ru', got %q", account.Locale())
 		}
 	})
 

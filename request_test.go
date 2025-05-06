@@ -306,7 +306,7 @@ func TestRequest(t *testing.T) {
 		}))
 		defer ts.Close()
 
-		req := funpay.NewRequest(account, ts.URL+"/path")
+		req := funpay.NewRequest(account, ts.URL+"/path").SetLocale(funpay.LocaleEN)
 		resp, err := req.Do()
 		if err != nil {
 			t.Fatalf("Do() failed: %v", err)
@@ -327,7 +327,7 @@ func TestRequest(t *testing.T) {
 		}))
 		defer ts.Close()
 
-		req := funpay.NewRequest(account, ts.URL)
+		req := funpay.NewRequest(account, ts.URL).SetLocale(funpay.LocaleEN)
 		resp, err := req.Do()
 		if err != nil {
 			t.Fatalf("Do() failed: %v", err)
