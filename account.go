@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -14,6 +15,9 @@ import (
 // Account represents an Funpay user session.
 // It stores authorization credentials and session cookies.
 type Account struct {
+	// baseURL is the funpay url that can be changed for tests
+	baseURL string
+
 	// goldenKey is the account's authentication token
 	// used for authorized requests to Funpay API
 	goldenKey string
@@ -33,6 +37,9 @@ type Account struct {
 	// username contains the login name of the Funpay account
 	username string
 
+	// balance contains the current balance from the badge
+	balance float64
+
 	mu sync.RWMutex
 }
 
@@ -43,6 +50,7 @@ func NewAccount(goldenKey, userAgent string) *Account {
 	return &Account{
 		goldenKey: goldenKey,
 		userAgent: userAgent,
+		baseURL:   BaseURL,
 	}
 }
 
@@ -99,13 +107,26 @@ func (a *Account) UserID() int64 {
 	return userID
 }
 
+func (a *Account) Balance() float64 {
+	a.mu.RLock()
+	balance := a.balance
+	a.mu.RUnlock()
+	return balance
+}
+
+func (a *Account) SetBaseURL(baseURL string) {
+	a.mu.Lock()
+	a.baseURL = baseURL
+	a.mu.Unlock()
+}
+
 // Update making a request to get account info.
 // Loads userID, username, cookies, csrfToken.
 // You should update account info every 40-60 minutes.
 func (a *Account) Update(ctx context.Context) error {
 	const op = "Account.Update"
 
-	resp, err := NewRequest(a, BaseURL).SetContext(ctx).Do()
+	resp, err := NewRequest(a, a.baseURL).SetContext(ctx).Do()
 	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)
 	}
@@ -130,13 +151,28 @@ func (a *Account) Update(ctx context.Context) error {
 		return fmt.Errorf("%s: %w", op, ErrAccountUnauthorized)
 	}
 
+	username := strings.TrimSpace(doc.Find(".user-link-name").First().Text())
+
+	rawBalance := doc.Find(".badge-balance").First().Text()
+	balanceStr := onlyDigitsRe.ReplaceAllString(rawBalance, "")
+	balanceStr = strings.TrimSpace(balanceStr)
+	var balance float64
+	if balanceStr != "" {
+		parsedBalance, err := strconv.ParseFloat(balanceStr, 64)
+		if err != nil {
+			return fmt.Errorf("%s: %w", op, err)
+		}
+
+		balance = parsedBalance
+	}
+
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	username := strings.TrimSpace(doc.Find(".user-link-name").First().Text())
 
 	a.csrfToken = appData.CSRFToken
 	a.userID = appData.UserID
 	a.username = username
+	a.balance = balance
 	a.cookies = resp.Cookies()
 
 	return nil
