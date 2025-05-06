@@ -30,5 +30,5 @@ Go library for [Funpay](https://funpay.com/).
   - [ ] Remove goods
   - [ ] Creating goods
 - [ ] Deploy
-  - [ ] Deploy into pgk.go.dev
+  - [ ] Deploy into pkg.go.dev
   - [ ] Improve documentation
