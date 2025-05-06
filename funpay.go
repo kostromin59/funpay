@@ -12,7 +12,7 @@ const (
 type AppData struct {
 	CSRFToken string `json:"csrf-token,omitempty"`
 	UserID    int64  `json:"userId,omitempty"`
-	Locale    string `json:"locale,omitempty"`
+	Locale    Locale `json:"locale,omitempty"`
 }
 
 // Locale represents the Funpay webiste locale.

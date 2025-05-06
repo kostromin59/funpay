@@ -57,13 +57,12 @@ type Request struct {
 
 // NewRequest creates new API request with default GET method (see [RequestDefaultMethod]).
 // You must provide full url. Use [BaseURL] as base of url.
-// Use SetLocale() to use the locale in request and use UpdateLocale() to set new locale via query param. Default locale is [LocaleEN]
+// Use SetLocale() to use the locale in request and use UpdateLocale() to set new locale via query param.
 func NewRequest(account RequestAccount, url string) *Request {
 	return &Request{
 		account:      account,
 		url:          url,
 		method:       RequestDefaultMethod,
-		locale:       LocaleEN,
 		updateLocale: false,
 	}
 }

@@ -33,13 +33,11 @@ type Account struct {
 // NewAccount creates a new session instance.
 // goldenKey - Funpay authentication token required for API access.
 // userAgent - browser User-Agent string to use for requests.
-// Default locale is [LocaleEN]
 func NewAccount(goldenKey, userAgent string) *Account {
 	return &Account{
 		goldenKey: goldenKey,
 		userAgent: userAgent,
 		baseURL:   BaseURL,
-		locale:    LocaleEN,
 	}
 }
 
@@ -126,6 +124,7 @@ func (a *Account) SetBaseURL(baseURL string) {
 	a.mu.Unlock()
 }
 
+// Locale returns account's locale used in requests.
 func (a *Account) Locale() Locale {
 	a.mu.RLock()
 	locale := a.locale
@@ -161,7 +160,6 @@ func (a *Account) Update(ctx context.Context) error {
 	const op = "Account.Update"
 
 	resp, err := NewRequest(a, a.baseURL).
-		SetLocale(a.locale).
 		SetContext(ctx).
 		Do()
 	if err != nil {
@@ -208,6 +206,7 @@ func (a *Account) Update(ctx context.Context) error {
 
 	a.csrfToken = appData.CSRFToken
 	a.userID = appData.UserID
+	a.locale = appData.Locale
 	a.username = username
 	a.balance = balance
 	a.cookies = resp.Cookies()
