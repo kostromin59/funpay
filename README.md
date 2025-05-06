@@ -13,7 +13,7 @@ Go library for [Funpay](https://funpay.com/).
   - [X] Request with account data
   - [X] Proxy support
   - [] Locale support (`setlocale` query param and path param for `en` and `uk`)
-  - [] Use interface for less cohesion
+  - [X] Use interface for less cohesion
 - [X] Account
   - [X] Info
     - [X] Username
