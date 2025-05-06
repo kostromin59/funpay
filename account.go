@@ -16,33 +16,16 @@ import (
 // Account represents an Funpay user session.
 // It stores authorization credentials and session cookies.
 type Account struct {
-	// baseURL is the funpay url that can be changed for tests
-	baseURL string
-
-	// goldenKey is the account's authentication token
-	// used for authorized requests to Funpay API
+	baseURL   string
 	goldenKey string
-
-	// userAgent contains the HTTP User-Agent string
 	userAgent string
-
-	// csrfToken stores csrf token from the page
 	csrfToken string
-
-	// cookies stores cookies received from Funpay
-	cookies []*http.Cookie
-
-	// userID contains the unique identifier of the Funpay account
-	userID int64
-
-	// username contains the login name of the Funpay account
-	username string
-
-	// balance contains the current balance from the badge
-	balance float64
-
-	// proxy is an optional HTTP/HTTPS/SOCKS proxy URL for all requests
-	proxy *url.URL
+	cookies   []*http.Cookie
+	userID    int64
+	username  string
+	balance   float64
+	proxy     *url.URL
+	locale    Locale
 
 	mu sync.RWMutex
 }
@@ -141,13 +124,44 @@ func (a *Account) SetBaseURL(baseURL string) {
 	a.mu.Unlock()
 }
 
+// Locale returns account's locale used in requests.
+func (a *Account) Locale() Locale {
+	a.mu.RLock()
+	locale := a.locale
+	a.mu.RUnlock()
+	return locale
+}
+
+// UpdateLocale makes a new request to update a locale.
+func (a *Account) UpdateLocale(ctx context.Context, locale Locale) error {
+	const op = "Account.UpdateLocale"
+
+	_, err := NewRequest(a, a.baseURL).
+		SetLocale(locale).
+		UpdateLocale(true).
+		SetContext(ctx).
+		Do()
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	a.locale = locale
+
+	return nil
+}
+
 // Update making a request to get account info.
 // Loads userID, username, cookies, csrfToken.
 // You should update account info every 40-60 minutes.
 func (a *Account) Update(ctx context.Context) error {
 	const op = "Account.Update"
 
-	resp, err := NewRequest(a, a.baseURL).SetContext(ctx).Do()
+	resp, err := NewRequest(a, a.baseURL).
+		SetContext(ctx).
+		Do()
 	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)
 	}
@@ -192,6 +206,7 @@ func (a *Account) Update(ctx context.Context) error {
 
 	a.csrfToken = appData.CSRFToken
 	a.userID = appData.UserID
+	a.locale = appData.Locale
 	a.username = username
 	a.balance = balance
 	a.cookies = resp.Cookies()

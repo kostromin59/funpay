@@ -1,6 +1,7 @@
 package funpay_test
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -21,7 +22,7 @@ func TestAccount_Update(t *testing.T) {
 
 			_, _ = w.Write([]byte(`
 				<html>
-					<body data-app-data='{"userId":123,"csrf-token":"test-csrf"}'>
+					<body data-app-data='{"userId":123,"csrf-token":"test-csrf","locale":"ru"}'>
 						<div class="user-link-name">testuser</div>
 						<div class="badge-balance">541 ₽</div>
 					</body>
@@ -56,6 +57,10 @@ func TestAccount_Update(t *testing.T) {
 
 		if len(account.Cookies()) != 2 {
 			t.Error("expected 2 cookies to be set")
+		}
+
+		if account.Locale() != "ru" {
+			t.Errorf("expected Locale 'ru', got %q", account.Locale())
 		}
 	})
 
@@ -251,6 +256,73 @@ func TestAccount_Update(t *testing.T) {
 
 		if account.UserID() != 123 {
 			t.Errorf("expected userID 123 with proxy, got %d", account.UserID())
+		}
+	})
+}
+
+func TestAccount_UpdateLocale(t *testing.T) {
+	t.Run("successful locale update", func(t *testing.T) {
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Query().Get("setlocale") != string(funpay.LocaleEN) {
+				t.Errorf("expected setlocale=%s, got %s", funpay.LocaleEN, r.URL.Query().Get("setlocale"))
+			}
+			w.WriteHeader(http.StatusOK)
+		}))
+		defer ts.Close()
+
+		account := funpay.NewAccount("valid_key", "test-agent")
+		account.SetBaseURL(ts.URL)
+
+		err := account.UpdateLocale(t.Context(), funpay.LocaleEN)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if account.Locale() != funpay.LocaleEN {
+			t.Errorf("expected locale %s, got %s", funpay.LocaleEN, account.Locale())
+		}
+	})
+
+	t.Run("unauthorized request", func(t *testing.T) {
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusForbidden)
+		}))
+		defer ts.Close()
+
+		account := funpay.NewAccount("invalid_key", "test-agent")
+		account.SetBaseURL(ts.URL)
+
+		err := account.UpdateLocale(t.Context(), funpay.LocaleEN)
+		if !errors.Is(err, funpay.ErrAccountUnauthorized) {
+			t.Fatalf("expected ErrAccountUnauthorized, got %v", err)
+		}
+	})
+
+	t.Run("invalid URL", func(t *testing.T) {
+		account := funpay.NewAccount("invalid_key", "test-agent")
+		account.SetBaseURL("http://invalid-url")
+
+		err := account.UpdateLocale(t.Context(), funpay.LocaleEN)
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+	})
+
+	t.Run("context cancellation", func(t *testing.T) {
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		}))
+		defer ts.Close()
+
+		account := funpay.NewAccount("valid_key", "test-agent")
+		account.SetBaseURL(ts.URL)
+
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel()
+
+		err := account.UpdateLocale(ctx, funpay.LocaleEN)
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("expected context.DeadlineExceeded, got %v", err)
 		}
 	})
 }

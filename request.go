@@ -42,12 +42,14 @@ type RequestAccount interface {
 
 // Request represents HTTP request builder for Funpay with account credentials.
 type Request struct {
-	url     string
-	method  string
-	body    io.Reader
-	cookies []*http.Cookie
-	headers map[string]string
-	proxy   *url.URL
+	url          string
+	method       string
+	body         io.Reader
+	cookies      []*http.Cookie
+	headers      map[string]string
+	proxy        *url.URL
+	locale       Locale
+	updateLocale bool
 
 	account RequestAccount
 	ctx     context.Context
@@ -55,11 +57,13 @@ type Request struct {
 
 // NewRequest creates new API request with default GET method (see [RequestDefaultMethod]).
 // You must provide full url. Use [BaseURL] as base of url.
+// Use SetLocale() to use the locale in request and use UpdateLocale() to set new locale via query param.
 func NewRequest(account RequestAccount, url string) *Request {
 	return &Request{
-		account: account,
-		url:     url,
-		method:  RequestDefaultMethod,
+		account:      account,
+		url:          url,
+		method:       RequestDefaultMethod,
+		updateLocale: false,
 	}
 }
 
@@ -101,12 +105,24 @@ func (r *Request) SetProxy(proxy *url.URL) *Request {
 	return r
 }
 
+// SetLocale sets the locale for the request.
+func (r *Request) SetLocale(locale Locale) *Request {
+	r.locale = locale
+	return r
+}
+
+// UpdateLocale sending the request via query param setlocale to set new locale.
+func (r *Request) UpdateLocale(update bool) *Request {
+	r.updateLocale = update
+	return r
+}
+
 // Do executes configured request with authentication and updates the account cookies.
 //
 // Returns [*http.Response] and [ErrAccountUnauthorized] if status code equals 403;
 // Returns [*http.Response] and [ErrTooManyRequests] if status code equals 429;
 // Returns [*http.Response] and [ErrBadStatusCode] if status code equals non-2xx.
-//
+
 // Otherwise returns nil and error.
 func (r *Request) Do() (*http.Response, error) {
 	const op = "Request.Do"
@@ -126,7 +142,28 @@ func (r *Request) Do() (*http.Response, error) {
 		defer cancel()
 	}
 
-	req, err := http.NewRequestWithContext(ctx, r.method, r.url, r.body)
+	reqURL, err := url.Parse(r.url)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+
+	if r.updateLocale {
+		q := reqURL.Query()
+		q.Set("setlocale", string(r.locale))
+		reqURL.RawQuery = q.Encode()
+	}
+
+	if r.locale != LocaleRU && !r.updateLocale {
+		path := reqURL.Path
+		if path == "" {
+			path = "/"
+		}
+
+		reqURL.Path = ""
+		reqURL = reqURL.JoinPath(string(r.locale), path)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, r.method, reqURL.String(), r.body)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
