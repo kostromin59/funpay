@@ -45,7 +45,7 @@ type Request struct {
 }
 
 // NewRequest creates new API request with default GET method (see [RequestDefaultMethod]).
-// You must provide full url. Use [FunpayURL] as base of url.
+// You must provide full url. Use [BaseURL] as base of url.
 func NewRequest(account *Account, url string) *Request {
 	return &Request{
 		account: account,
@@ -93,7 +93,7 @@ func (r *Request) SetContext(ctx context.Context) *Request {
 //
 // Otherwise returns nil and error.
 func (r *Request) Do() (*http.Response, error) {
-	const op = "request.Do"
+	const op = "Request.Do"
 
 	c := http.DefaultClient
 
@@ -126,7 +126,7 @@ func (r *Request) Do() (*http.Response, error) {
 	goldenKeyCookie := &http.Cookie{
 		Name:     RequestGoldenKeyCookie,
 		Value:    r.account.GoldenKey(),
-		Domain:   "." + FunpayDomain,
+		Domain:   "." + Domain,
 		Path:     "/",
 		HttpOnly: true,
 		Secure:   true,

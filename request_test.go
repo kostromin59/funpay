@@ -1,4 +1,4 @@
-package funpay
+package funpay_test
 
 import (
 	"context"
@@ -8,10 +8,12 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/kostromin59/funpay"
 )
 
 func TestRequest(t *testing.T) {
-	account := NewAccount("test_key", "test_agent")
+	account := funpay.NewAccount("test_key", "test_agent")
 
 	t.Run("successful GET request", func(t *testing.T) {
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -23,7 +25,7 @@ func TestRequest(t *testing.T) {
 		}))
 		defer ts.Close()
 
-		req := NewRequest(account, ts.URL)
+		req := funpay.NewRequest(account, ts.URL)
 		resp, err := req.Do()
 		if err != nil {
 			t.Fatalf("Do() failed: %v", err)
@@ -52,7 +54,7 @@ func TestRequest(t *testing.T) {
 		}))
 		defer ts.Close()
 
-		req := NewRequest(account, ts.URL).
+		req := funpay.NewRequest(account, ts.URL).
 			SetMethod(http.MethodPost).
 			SetBody(strings.NewReader("test body"))
 
@@ -78,7 +80,7 @@ func TestRequest(t *testing.T) {
 		}))
 		defer ts.Close()
 
-		req := NewRequest(account, ts.URL).
+		req := funpay.NewRequest(account, ts.URL).
 			SetCookies([]*http.Cookie{{Name: "custom", Value: "value"}})
 
 		resp, err := req.Do()
@@ -103,7 +105,7 @@ func TestRequest(t *testing.T) {
 		defer ts.Close()
 
 		account.SetCookies([]*http.Cookie{{Name: "session", Value: "test"}})
-		req := NewRequest(account, ts.URL)
+		req := funpay.NewRequest(account, ts.URL)
 
 		resp, err := req.Do()
 		if err != nil {
@@ -126,7 +128,7 @@ func TestRequest(t *testing.T) {
 		}))
 		defer ts.Close()
 
-		req := NewRequest(account, ts.URL).
+		req := funpay.NewRequest(account, ts.URL).
 			SetHeaders(map[string]string{"X-Custom": "value"})
 
 		resp, err := req.Do()
@@ -140,7 +142,7 @@ func TestRequest(t *testing.T) {
 	})
 
 	t.Run("request construction error", func(t *testing.T) {
-		req := NewRequest(account, "://invalid.url").
+		req := funpay.NewRequest(account, "://invalid.url").
 			SetMethod("INVALID\nMETHOD")
 
 		resp, err := req.Do()
@@ -159,9 +161,9 @@ func TestRequest(t *testing.T) {
 		}))
 		defer ts.Close()
 
-		req := NewRequest(account, ts.URL)
+		req := funpay.NewRequest(account, ts.URL)
 		resp, err := req.Do()
-		if !errors.Is(err, ErrAccountUnauthorized) {
+		if !errors.Is(err, funpay.ErrAccountUnauthorized) {
 			t.Errorf("Expected ErrAccountUnauthorized, got %v", err)
 		}
 
@@ -176,9 +178,9 @@ func TestRequest(t *testing.T) {
 		}))
 		defer ts.Close()
 
-		req := NewRequest(account, ts.URL)
+		req := funpay.NewRequest(account, ts.URL)
 		resp, err := req.Do()
-		if !errors.Is(err, ErrTooManyRequests) {
+		if !errors.Is(err, funpay.ErrTooManyRequests) {
 			t.Errorf("Expected ErrTooManyRequests, got %v", err)
 		}
 
@@ -193,9 +195,9 @@ func TestRequest(t *testing.T) {
 		}))
 		defer ts.Close()
 
-		req := NewRequest(account, ts.URL)
+		req := funpay.NewRequest(account, ts.URL)
 		resp, err := req.Do()
-		if !errors.Is(err, ErrBadStatusCode) {
+		if !errors.Is(err, funpay.ErrBadStatusCode) {
 			t.Errorf("Expected ErrBadStatusCode, got %v", err)
 		}
 
@@ -213,7 +215,7 @@ func TestRequest(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
-		req := NewRequest(account, ts.URL).
+		req := funpay.NewRequest(account, ts.URL).
 			SetContext(ctx)
 
 		resp, err := req.Do()
@@ -233,7 +235,7 @@ func TestRequest(t *testing.T) {
 		}))
 		defer ts.Close()
 
-		req := NewRequest(account, ts.URL)
+		req := funpay.NewRequest(account, ts.URL)
 		_, err := req.Do()
 		if err != nil {
 			t.Fatal(err)

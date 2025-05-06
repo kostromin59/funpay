@@ -12,9 +12,11 @@ Go library for [Funpay](https://funpay.com/).
 - [X] Utilites
   - [X] Request with account data
   - [X] Representation of user account
+  - [ ] Proxy support in requests
 - [ ] Account
-  - [ ] Info
+  - [ ] Info (in progress)
   - [ ] Updating cookies
+  - [ ] Proxy support
 - [ ] Messages
   - [ ] Getting all messages
   - [ ] Getting new messages
