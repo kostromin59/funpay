@@ -317,6 +317,27 @@ func TestRequest(t *testing.T) {
 		}
 	})
 
+	t.Run("locale handling - EN adds prefix and empty path ends with /", func(t *testing.T) {
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if !strings.HasPrefix(r.URL.Path, "/en/") {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+		}))
+		defer ts.Close()
+
+		req := funpay.NewRequest(account, ts.URL)
+		resp, err := req.Do()
+		if err != nil {
+			t.Fatalf("Do() failed: %v", err)
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			t.Errorf("Expected status 200, got %d", resp.StatusCode)
+		}
+	})
+
 	t.Run("locale handling - RU doesn't add prefix", func(t *testing.T) {
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if strings.HasPrefix(r.URL.Path, "/ru/") {

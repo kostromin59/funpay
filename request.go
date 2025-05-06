@@ -156,6 +156,10 @@ func (r *Request) Do() (*http.Response, error) {
 
 	if r.locale != LocaleRU && !r.updateLocale {
 		path := reqURL.Path
+		if path == "" {
+			path = "/"
+		}
+
 		reqURL.Path = ""
 		reqURL = reqURL.JoinPath(string(r.locale), path)
 	}
