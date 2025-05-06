@@ -223,7 +223,7 @@ func TestRequest(t *testing.T) {
 		}))
 		defer ts.Close()
 
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(t.Context())
 		cancel()
 
 		req := funpay.NewRequest(account, ts.URL).
