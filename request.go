@@ -1,215 +1,75 @@
 package funpay
 
 import (
-	"context"
-	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"net/url"
-	"time"
 )
 
-const (
-	RequestDefaultMethod     = http.MethodGet     // Default HTTP method for requests.
-	RequestDefaultTimeout    = 1 * time.Minute    // Default request timeout duration for context.
-	RequestUserAgentHeader   = "User-Agent"       // User-Agent header name.
-	RequestContentTypeHeader = "Content-Type"     // Content-Type header name.
-	RequestJSONContentType   = "application/json" // application/json value for Content-Type header.
-	RequestGoldenKeyCookie   = "golden_key"       // Golden key cookie name.
-)
-
-var (
-	// ErrAccountUnauthorized indicates authentication failure (HTTP 403 Forbidden).
-	// Returned when golden key or session cookies are invalid/expired.
-	ErrAccountUnauthorized = errors.New("account unauthorized")
-
-	// ErrTooManyRequests indicates rate limiting (HTTP 429 Too Many Requests).
-	// Returned when exceeding API request limits.
-	ErrTooManyRequests = errors.New("too many requests")
-
-	// ErrBadStatusCode indicates unexpected HTTP response status.
-	// Returned for any non-2xx status code not covered by other errors.
-	ErrBadStatusCode = errors.New("bad status code")
-)
-
-type RequestAccount interface {
-	GoldenKey() string
-	UserAgent() string
-	Cookies() []*http.Cookie
-	SetCookies([]*http.Cookie)
+type requestOpts struct {
+	method        string
+	body          io.Reader
+	cookies       []*http.Cookie
+	headers       map[string]string
+	proxy         *url.URL
+	locale        Locale
+	updateLocale  bool
+	updateAppData bool
 }
 
-// Request represents HTTP request builder for Funpay with account credentials.
-type Request struct {
-	url          string
-	method       string
-	body         io.Reader
-	cookies      []*http.Cookie
-	headers      map[string]string
-	proxy        *url.URL
-	locale       Locale
-	updateLocale bool
-
-	account RequestAccount
-	ctx     context.Context
-}
-
-// NewRequest creates new API request with default GET method (see [RequestDefaultMethod]).
-// You must provide full url. Use [BaseURL] as base of url.
-// Use SetLocale() to use the locale in request and use UpdateLocale() to set new locale via query param.
-func NewRequest(account RequestAccount, url string) *Request {
-	return &Request{
-		account:      account,
-		url:          url,
-		method:       RequestDefaultMethod,
-		updateLocale: false,
+func newRequestOpts() *requestOpts {
+	return &requestOpts{
+		method:        http.MethodGet,
+		updateAppData: true,
 	}
 }
 
-// SetMethod changes HTTP method for request.
-func (r *Request) SetMethod(method string) *Request {
-	r.method = method
-	return r
+type requestOpt func(options *requestOpts)
+
+func RequestWithMethod(method string) requestOpt {
+	return func(options *requestOpts) {
+		options.method = method
+	}
 }
 
-// SetBody sets request body content.
-func (r *Request) SetBody(body io.Reader) *Request {
-	r.body = body
-	return r
+func RequestWithBody(body io.Reader) requestOpt {
+	return func(options *requestOpts) {
+		options.body = body
+	}
 }
 
-// SetCookies adds custom cookies to request. Overrides previous cookies.
-func (r *Request) SetCookies(cookies []*http.Cookie) *Request {
-	r.cookies = cookies
-	return r
+func RequestWithCookies(cookies []*http.Cookie) requestOpt {
+	return func(options *requestOpts) {
+		options.cookies = cookies
+	}
 }
 
-// SetHeaders adds custom headers to requests. Overrides previous headers.
-func (r *Request) SetHeaders(headers map[string]string) *Request {
-	r.headers = headers
-	return r
+func RequestWithHeaders(headers map[string]string) requestOpt {
+	return func(options *requestOpts) {
+		options.headers = headers
+	}
 }
 
-// SetContext sets context for request cancellation.
-// Default context uses [RequestDefaultTimeout] (1 minute) timeout.
-func (r *Request) SetContext(ctx context.Context) *Request {
-	r.ctx = ctx
-	return r
+func RequestWithProxy(proxy *url.URL) requestOpt {
+	return func(options *requestOpts) {
+		options.proxy = proxy
+	}
 }
 
-// SetProxy sets or updates the HTTP proxy for the requests.
-// To remove proxy and make direct connections, pass nil: request.SetProxy(nil)
-func (r *Request) SetProxy(proxy *url.URL) *Request {
-	r.proxy = proxy
-	return r
+func RequestWithLocale(locale Locale) requestOpt {
+	return func(options *requestOpts) {
+		options.locale = locale
+	}
 }
 
-// SetLocale sets the locale for the request.
-func (r *Request) SetLocale(locale Locale) *Request {
-	r.locale = locale
-	return r
+func RequestWithUpdateLocale(updateLocale bool) requestOpt {
+	return func(options *requestOpts) {
+		options.updateLocale = updateLocale
+	}
 }
 
-// UpdateLocale sending the request via query param setlocale to set new locale.
-func (r *Request) UpdateLocale(update bool) *Request {
-	r.updateLocale = update
-	return r
-}
-
-// Do executes configured request with authentication and updates the account cookies.
-//
-// Returns [*http.Response] and [ErrAccountUnauthorized] if status code equals 403;
-// Returns [*http.Response] and [ErrTooManyRequests] if status code equals 429;
-// Returns [*http.Response] and [ErrBadStatusCode] if status code equals non-2xx.
-
-// Otherwise returns nil and error.
-func (r *Request) Do() (*http.Response, error) {
-	const op = "Request.Do"
-
-	t := &http.Transport{}
-	t.Proxy = http.ProxyURL(r.proxy)
-
-	c := http.DefaultClient
-	c.Transport = t
-
-	var ctx context.Context
-	if r.ctx != nil {
-		ctx = r.ctx
-	} else {
-		timeoutCtx, cancel := context.WithTimeout(context.Background(), RequestDefaultTimeout)
-		ctx = timeoutCtx
-		defer cancel()
+func RequestWithUpdateAppData(updateAppData bool) requestOpt {
+	return func(options *requestOpts) {
+		options.updateAppData = updateAppData
 	}
-
-	reqURL, err := url.Parse(r.url)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", op, err)
-	}
-
-	if r.updateLocale {
-		q := reqURL.Query()
-		q.Set("setlocale", string(r.locale))
-		reqURL.RawQuery = q.Encode()
-	}
-
-	if r.locale != LocaleRU && !r.updateLocale {
-		path := reqURL.Path
-		if path == "" {
-			path = "/"
-		}
-
-		reqURL.Path = ""
-		reqURL = reqURL.JoinPath(string(r.locale), path)
-	}
-
-	req, err := http.NewRequestWithContext(ctx, r.method, reqURL.String(), r.body)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", op, err)
-	}
-
-	for _, c := range r.cookies {
-		req.AddCookie(c)
-	}
-
-	for name, value := range r.headers {
-		req.Header.Add(name, value)
-	}
-
-	for _, c := range r.account.Cookies() {
-		req.AddCookie(c)
-	}
-
-	goldenKeyCookie := &http.Cookie{
-		Name:     RequestGoldenKeyCookie,
-		Value:    r.account.GoldenKey(),
-		Domain:   "." + Domain,
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   true,
-	}
-
-	req.AddCookie(goldenKeyCookie)
-	req.Header.Set(RequestUserAgentHeader, r.account.UserAgent())
-
-	resp, err := c.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", op, err)
-	}
-
-	r.account.SetCookies(resp.Cookies())
-
-	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		if resp.StatusCode == 403 {
-			return resp, fmt.Errorf("%s: %w", op, ErrAccountUnauthorized)
-		}
-
-		if resp.StatusCode == 429 {
-			return resp, fmt.Errorf("%s: %w", op, ErrTooManyRequests)
-		}
-
-		return resp, fmt.Errorf("%s: %w (%d)", op, ErrBadStatusCode, resp.StatusCode)
-	}
-
-	return resp, nil
 }

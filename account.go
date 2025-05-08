@@ -1,9 +1,11 @@
 package funpay
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -136,14 +138,11 @@ func (a *Account) Locale() Locale {
 func (a *Account) UpdateLocale(ctx context.Context, locale Locale) error {
 	const op = "Account.UpdateLocale"
 
-	_, err := NewRequest(a, a.baseURL).
-		SetLocale(locale).
-		UpdateLocale(true).
-		SetContext(ctx).
-		Do()
+	resp, err := a.Request(ctx, a.baseURL, RequestWithLocale(locale), RequestWithUpdateLocale(true))
 	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)
 	}
+	defer resp.Body.Close()
 
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -155,13 +154,11 @@ func (a *Account) UpdateLocale(ctx context.Context, locale Locale) error {
 
 // Update making a request to get account info.
 // Loads userID, username, cookies, csrfToken.
-// You should update account info every 40-60 minutes.
+// You should update account info every 40-60 minutes to update cookies.
 func (a *Account) Update(ctx context.Context) error {
 	const op = "Account.Update"
 
-	resp, err := NewRequest(a, a.baseURL).
-		SetContext(ctx).
-		Do()
+	resp, err := a.Request(ctx, a.baseURL)
 	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)
 	}
@@ -172,22 +169,7 @@ func (a *Account) Update(ctx context.Context) error {
 		return fmt.Errorf("%s: %w", op, err)
 	}
 
-	appDataRaw, ok := doc.Find("body").Attr("data-app-data")
-	if !ok {
-		return fmt.Errorf("%s: %w", op, ErrAccountUnauthorized)
-	}
-
-	var appData AppData
-	if err := json.Unmarshal([]byte(appDataRaw), &appData); err != nil {
-		return fmt.Errorf("%s: %w", op, err)
-	}
-
-	if appData.UserID == 0 {
-		return fmt.Errorf("%s: %w", op, ErrAccountUnauthorized)
-	}
-
 	username := strings.TrimSpace(doc.Find(".user-link-name").First().Text())
-
 	rawBalance := doc.Find(".badge-balance").First().Text()
 	balanceStr := onlyDigitsRe.ReplaceAllString(rawBalance, "")
 	balanceStr = strings.TrimSpace(balanceStr)
@@ -203,13 +185,148 @@ func (a *Account) Update(ctx context.Context) error {
 
 	a.mu.Lock()
 	defer a.mu.Unlock()
-
-	a.csrfToken = appData.CSRFToken
-	a.userID = appData.UserID
-	a.locale = appData.Locale
 	a.username = username
 	a.balance = balance
 	a.cookies = resp.Cookies()
 
 	return nil
+}
+
+// updateAppData extracts data-app-data attribute from body element and sets csrfToken, userID, locale.
+func (a *Account) updateAppData(doc *goquery.Document) error {
+	const op = "Account.updateAppData"
+
+	appDataRaw, ok := doc.Find("body").Attr("data-app-data")
+	if !ok {
+		return fmt.Errorf("%s: %w", op, ErrAccountUnauthorized)
+	}
+
+	var appData AppData
+	if err := json.Unmarshal([]byte(appDataRaw), &appData); err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+
+	a.mu.Lock()
+	a.csrfToken = appData.CSRFToken
+	a.userID = appData.UserID
+	a.locale = appData.Locale
+	a.mu.Unlock()
+
+	if appData.UserID == 0 {
+		return fmt.Errorf("%s: %w", op, ErrAccountUnauthorized)
+	}
+
+	return nil
+}
+
+func (a *Account) Request(ctx context.Context, requestURL string, opts ...requestOpt) (*http.Response, error) {
+	const op = "Account.Request"
+
+	reqOpts := newRequestOpts()
+
+	if a.proxy != nil {
+		opt := RequestWithProxy(a.proxy)
+		opt(reqOpts)
+	}
+
+	for _, opt := range opts {
+		opt(reqOpts)
+	}
+
+	t := &http.Transport{}
+	if reqOpts.proxy != nil {
+		t.Proxy = http.ProxyURL(reqOpts.proxy)
+	}
+
+	c := http.DefaultClient
+	c.Transport = t
+
+	reqURL, err := url.Parse(requestURL)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+
+	if reqOpts.updateLocale {
+		q := reqURL.Query()
+		q.Set("setlocale", string(reqOpts.locale))
+		reqURL.RawQuery = q.Encode()
+	}
+
+	if reqOpts.locale != LocaleRU && !reqOpts.updateLocale {
+		path := reqURL.Path
+		if path == "" {
+			path = "/"
+		}
+
+		reqURL.Path = ""
+		reqURL = reqURL.JoinPath(string(reqOpts.locale), path)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, reqOpts.method, reqURL.String(), reqOpts.body)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+
+	for _, c := range reqOpts.cookies {
+		req.AddCookie(c)
+	}
+
+	req.Header.Set("User-Agent", a.UserAgent())
+	for name, value := range reqOpts.headers {
+		req.Header.Add(name, value)
+	}
+
+	for _, c := range a.Cookies() {
+		req.AddCookie(c)
+	}
+
+	goldenKeyCookie := &http.Cookie{
+		Name:     GoldenKeyCookie,
+		Value:    a.GoldenKey(),
+		Domain:   "." + Domain,
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   true,
+	}
+
+	req.AddCookie(goldenKeyCookie)
+
+	resp, err := c.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		if resp.StatusCode == 403 {
+			return resp, fmt.Errorf("%s: %w", op, ErrAccountUnauthorized)
+		}
+
+		if resp.StatusCode == 429 {
+			return resp, fmt.Errorf("%s: %w", op, ErrTooManyRequests)
+		}
+
+		return resp, fmt.Errorf("%s: %w (%d)", op, ErrBadStatusCode, resp.StatusCode)
+	}
+
+	a.SetCookies(resp.Cookies())
+
+	if reqOpts.updateAppData {
+		b, err := io.ReadAll(resp.Body)
+		if err != nil {
+			_ = resp.Body.Close()
+			return nil, fmt.Errorf("%s: %w", op, err)
+		}
+		resp.Body = io.NopCloser(bytes.NewReader(b))
+
+		doc, err := goquery.NewDocumentFromReader(bytes.NewReader(b))
+		if err != nil {
+			return resp, fmt.Errorf("%s: %w", op, err)
+		}
+
+		if err := a.updateAppData(doc); err != nil {
+			return resp, fmt.Errorf("%s: %w", op, err)
+		}
+	}
+
+	return resp, nil
 }
