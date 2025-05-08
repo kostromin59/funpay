@@ -219,6 +219,20 @@ func (a *Account) updateAppData(doc *goquery.Document) error {
 	return nil
 }
 
+// Request executes an HTTP request using the account's session.
+//
+// It handles:
+//   - Proxy configuration (if set),
+//   - Locale settings (path or query param),
+//   - Cookie management (session and golden key),
+//   - User-Agent header,
+//   - Response status code validation,
+//   - Automatic [AppData] updates (can be disabled with [RequestWithUpdateAppData]).
+//
+// Specific returns:
+//   - [*http.Response] and [ErrAccountUnauthorized] if status code equals 403,
+//   - [*http.Response] and [ErrToManyRequests] if status code equals 429,
+//   - [*http.Response] [ErrBadStatusCode] otherwise.
 func (a *Account) Request(ctx context.Context, requestURL string, opts ...requestOpt) (*http.Response, error) {
 	const op = "Account.Request"
 
