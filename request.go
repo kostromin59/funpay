@@ -9,14 +9,11 @@ import (
 // requestOpts contains configurable parameters for HTTP requests.
 // Used internally by Account.Request() to customize request behavior.
 type requestOpts struct {
-	method        string
-	body          io.Reader
-	cookies       []*http.Cookie
-	headers       map[string]string
-	proxy         *url.URL
-	locale        Locale
-	updateLocale  bool
-	updateAppData bool
+	method  string
+	body    io.Reader
+	cookies []*http.Cookie
+	headers map[string]string
+	proxy   *url.URL
 }
 
 // newRequestOpts creates request options with defaults:
@@ -24,8 +21,7 @@ type requestOpts struct {
 //   - Auto-update app data: enabled
 func newRequestOpts() *requestOpts {
 	return &requestOpts{
-		method:        http.MethodGet,
-		updateAppData: true,
+		method: http.MethodGet,
 	}
 }
 
@@ -68,35 +64,5 @@ func RequestWithHeaders(headers map[string]string) requestOpt {
 func RequestWithProxy(proxy *url.URL) requestOpt {
 	return func(options *requestOpts) {
 		options.proxy = proxy
-	}
-}
-
-// RequestWithLocale sets the locale for the request.
-// Affects URL path/query based on updateLocale flag.
-func RequestWithLocale(locale Locale) requestOpt {
-	return func(options *requestOpts) {
-		options.locale = locale
-	}
-}
-
-// RequestWithUpdateLocale controls locale handling:
-//   - true: adds locale as query parameter (?setlocale=xx)
-//   - false: adds locale as path prefix (/xx/path)
-//
-// Default behavior depends on account configuration.
-func RequestWithUpdateLocale(updateLocale bool) requestOpt {
-	return func(options *requestOpts) {
-		options.updateLocale = updateLocale
-	}
-}
-
-// RequestWithUpdateAppData controls automatic app data parsing:
-//   - true: extracts CSRF token, user ID etc. from response
-//   - false: skips app data processing
-//
-// Default: true
-func RequestWithUpdateAppData(updateAppData bool) requestOpt {
-	return func(options *requestOpts) {
-		options.updateAppData = updateAppData
 	}
 }
