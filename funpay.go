@@ -3,7 +3,6 @@ package funpay
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -18,31 +17,7 @@ const (
 
 	// BaseURL is the base URL for the Funpay website.
 	BaseURL = "https://" + Domain
-
-	// GoldenKeyCookie is the cookie name for golden key.
-	GoldenKeyCookie = "golden_key"
 )
-
-var (
-	// ErrAccountUnauthorized indicates authentication failure (HTTP 403 Forbidden).
-	// Returned when golden key or session cookies are invalid/expired.
-	ErrAccountUnauthorized = errors.New("account unauthorized")
-
-	// ErrTooManyRequests indicates rate limiting (HTTP 429 Too Many Requests).
-	// Returned when exceeding API request limits.
-	ErrTooManyRequests = errors.New("too many requests")
-
-	// ErrBadStatusCode indicates unexpected HTTP response status.
-	// Returned for any non-2xx status code not covered by other errors.
-	ErrBadStatusCode = errors.New("bad status code")
-)
-
-// AppData represents the object from data-app-data attribute inside the body element.
-type AppData struct {
-	CSRFToken string `json:"csrf-token"`
-	UserID    int64  `json:"userId"`
-	Locale    Locale `json:"locale"`
-}
 
 type Funpay struct {
 	account *account
@@ -91,8 +66,6 @@ func (fp *Funpay) UpdateLocale(ctx context.Context, locale Locale) error {
 		return fmt.Errorf("%s: %w", op, err)
 	}
 
-	fp.account.setLocale(locale)
-
 	return nil
 }
 
@@ -113,6 +86,14 @@ func (fp *Funpay) Cookies() []*http.Cookie {
 // SetBaseURL updates baseURL. It is not concurrency safe. Needed for tests.
 func (fp *Funpay) SetBaseURL(baseURL string) {
 	fp.baseURL = baseURL
+}
+
+// SetProxy sets or updates the HTTP proxy for the requests.
+// To remove proxy and make direct connections, pass nil.
+func (fp *Funpay) SetProxy(proxy *url.URL) {
+	fp.mu.Lock()
+	fp.proxy = proxy
+	fp.mu.Unlock()
 }
 
 // Request executes an HTTP request using the account's session.
@@ -175,7 +156,7 @@ func (fp *Funpay) Request(ctx context.Context, requestURL string, opts ...reques
 		req.AddCookie(c)
 	}
 
-	req.Header.Set("User-Agent", fp.Account().UserAgent())
+	req.Header.Set(HeaderUserAgent, fp.Account().UserAgent())
 	for name, value := range reqOpts.headers {
 		req.Header.Add(name, value)
 	}
@@ -185,7 +166,7 @@ func (fp *Funpay) Request(ctx context.Context, requestURL string, opts ...reques
 	}
 
 	goldenKeyCookie := &http.Cookie{
-		Name:     GoldenKeyCookie,
+		Name:     CookieGoldenKey,
 		Value:    fp.Account().GoldenKey(),
 		Domain:   "." + Domain,
 		Path:     "/",

@@ -1,12 +1,19 @@
 package funpay
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 	"sync"
 
 	"github.com/PuerkitoBio/goquery"
+)
+
+var (
+	// ErrAccountUnauthorized indicates authentication failure (HTTP 403 Forbidden).
+	// Returned when golden key or session cookies are invalid/expired.
+	ErrAccountUnauthorized = errors.New("account unauthorized")
 )
 
 type account struct {

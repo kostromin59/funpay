@@ -1,9 +1,28 @@
 package funpay
 
 import (
+	"errors"
 	"io"
 	"net/http"
 	"net/url"
+)
+
+var (
+	// ErrTooManyRequests indicates rate limiting (HTTP 429 Too Many Requests).
+	// Returned when exceeding API request limits.
+	ErrTooManyRequests = errors.New("too many requests")
+
+	// ErrBadStatusCode indicates unexpected HTTP response status.
+	// Returned for any non-2xx status code not covered by other errors.
+	ErrBadStatusCode = errors.New("bad status code")
+)
+
+const (
+	// CookieGoldenKey is the cookie name for golden key.
+	CookieGoldenKey = "golden_key"
+
+	// HeaderUserAgent is the header name for user agent.
+	HeaderUserAgent = "User-Agent"
 )
 
 // requestOpts contains configurable parameters for HTTP requests.
