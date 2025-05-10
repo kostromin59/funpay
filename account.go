@@ -16,6 +16,7 @@ type account struct {
 	id       int64
 	username string
 	balance  float64
+	locale   Locale
 
 	mu sync.RWMutex
 }
@@ -33,6 +34,19 @@ func (a *account) GoldenKey() string {
 	gk := a.goldenKey
 	a.mu.RUnlock()
 	return gk
+}
+
+func (a *account) Locale() Locale {
+	a.mu.RLock()
+	locale := a.locale
+	a.mu.RUnlock()
+	return locale
+}
+
+func (a *account) setLocale(locale Locale) {
+	a.mu.Lock()
+	a.locale = locale
+	a.mu.Unlock()
 }
 
 func (a *account) Username() string {

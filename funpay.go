@@ -39,21 +39,19 @@ var (
 
 // AppData represents the object from data-app-data attribute inside the body element.
 type AppData struct {
-	CSRFToken string `json:"csrf-token,omitempty"`
-	UserID    int64  `json:"userId,omitempty"`
-	Locale    Locale `json:"locale,omitempty"`
+	CSRFToken string `json:"csrf-token"`
+	UserID    int64  `json:"userId"`
+	Locale    Locale `json:"locale"`
 }
 
 type Funpay struct {
 	account *account
 
-	locale    Locale
 	csrfToken string
-
-	baseURL string
-	cookies []*http.Cookie
-	proxy   *url.URL
-	mu      sync.RWMutex
+	baseURL   string
+	cookies   []*http.Cookie
+	proxy     *url.URL
+	mu        sync.RWMutex
 }
 
 func New(goldenKey, userAgent string) *Funpay {
@@ -63,22 +61,40 @@ func New(goldenKey, userAgent string) *Funpay {
 	}
 }
 
-func (fp *Funpay) Locale() Locale {
-	return fp.locale
-}
-
 func (fp *Funpay) Update(ctx context.Context) error {
 	const op = "Funpay.Update"
-	doc, err := fp.RequestHTML(ctx, fp.baseURL)
+
+	_, err := fp.RequestHTML(ctx, fp.baseURL)
 	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)
 	}
 
-	if err := fp.account.update(doc); err != nil {
+	return nil
+}
+
+func (fp *Funpay) UpdateLocale(ctx context.Context, locale Locale) error {
+	const op = "Funpay.UpdateLocale"
+
+	reqURL, err := url.Parse(fp.baseURL)
+	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)
 	}
 
+	q := reqURL.Query()
+	q.Set("setlocale", string(locale))
+	reqURL.RawQuery = q.Encode()
+
+	if _, err := fp.RequestHTML(ctx, reqURL.String()); err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+
+	fp.account.setLocale(locale)
+
 	return nil
+}
+
+func (fp *Funpay) SetBaseURL(baseURL string) {
+	fp.baseURL = baseURL
 }
 
 func (fp *Funpay) Account() *account {
@@ -107,15 +123,12 @@ func (fp *Funpay) updateAppData(doc *goquery.Document) error {
 		return fmt.Errorf("%s: %w", op, err)
 	}
 
+	fp.account.setID(appData.UserID)
+	fp.Account().setLocale(appData.Locale)
+
 	fp.mu.Lock()
 	fp.csrfToken = appData.CSRFToken
-	fp.locale = appData.Locale
-	fp.account.setID(appData.UserID)
 	fp.mu.Unlock()
-
-	if appData.UserID == 0 {
-		return fmt.Errorf("%s: %w", op, ErrAccountUnauthorized)
-	}
 
 	return nil
 }
@@ -147,20 +160,15 @@ func (fp *Funpay) Request(ctx context.Context, requestURL string, opts ...reques
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 
-	// if reqOpts.updateLocale {
-	// 	q := reqURL.Query()
-	// 	q.Set("setlocale", string(reqOpts.locale))
-	// 	reqURL.RawQuery = q.Encode()
-	// }
-
-	if fp.locale != LocaleRU {
+	locale := fp.Account().Locale()
+	if locale != LocaleRU {
 		path := reqURL.Path
 		if path == "" {
 			path = "/"
 		}
 
 		reqURL.Path = ""
-		reqURL = reqURL.JoinPath(string(fp.locale), path)
+		reqURL = reqURL.JoinPath(string(locale), path)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, reqOpts.method, reqURL.String(), reqOpts.body)
@@ -232,6 +240,14 @@ func (fp *Funpay) RequestHTML(ctx context.Context, requestURL string, opts ...re
 
 	if err := fp.updateAppData(doc); err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+
+	if err := fp.Account().update(doc); err != nil {
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+
+	if fp.Account().ID() == 0 {
+		return nil, fmt.Errorf("%s: %w", op, ErrAccountUnauthorized)
 	}
 
 	return doc, nil

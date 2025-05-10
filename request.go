@@ -18,7 +18,6 @@ type requestOpts struct {
 
 // newRequestOpts creates request options with defaults:
 //   - Method: GET
-//   - Auto-update app data: enabled
 func newRequestOpts() *requestOpts {
 	return &requestOpts{
 		method: http.MethodGet,
