@@ -9,12 +9,13 @@ Go library for [Funpay](https://funpay.com/).
 
 > This list may grow while developing.
 
+- [X] Other
+  - [X] Use single entrypoint (funpay.New)
 - [X] Requests
   - [X] Request with account data
   - [X] Proxy support
   - [X] Locale support (`setlocale` query param and path param for `en` and `uk`)
   - [X] Auto load locale
-  - [X] Use interface for less cohesion
 - [X] Account
   - [X] Info
     - [X] Username
