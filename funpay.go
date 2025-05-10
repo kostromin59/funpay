@@ -54,6 +54,7 @@ type Funpay struct {
 	mu        sync.RWMutex
 }
 
+// New creates a new instanse of [Funpay].
 func New(goldenKey, userAgent string) *Funpay {
 	return &Funpay{
 		account: newAccount(goldenKey, userAgent),
@@ -61,6 +62,7 @@ func New(goldenKey, userAgent string) *Funpay {
 	}
 }
 
+// Update calls [Funpay.RequestHTML].
 func (fp *Funpay) Update(ctx context.Context) error {
 	const op = "Funpay.Update"
 
@@ -72,6 +74,7 @@ func (fp *Funpay) Update(ctx context.Context) error {
 	return nil
 }
 
+// UpdateLocale calls [Funpay.RequestHTML] with setlocale query param.
 func (fp *Funpay) UpdateLocale(ctx context.Context, locale Locale) error {
 	const op = "Funpay.UpdateLocale"
 
@@ -93,10 +96,7 @@ func (fp *Funpay) UpdateLocale(ctx context.Context, locale Locale) error {
 	return nil
 }
 
-func (fp *Funpay) SetBaseURL(baseURL string) {
-	fp.baseURL = baseURL
-}
-
+// Account returns account info: id, username, balance, locale. [Funpay.RequestHTML] updates account info.
 func (fp *Funpay) Account() *account {
 	return fp.account
 }
@@ -110,29 +110,24 @@ func (fp *Funpay) Cookies() []*http.Cookie {
 	return c
 }
 
-func (fp *Funpay) updateAppData(doc *goquery.Document) error {
-	const op = "Funpay.updateAppData"
-
-	appDataRaw, ok := doc.Find("body").Attr("data-app-data")
-	if !ok {
-		return fmt.Errorf("%s: %w", op, ErrAccountUnauthorized)
-	}
-
-	var appData AppData
-	if err := json.Unmarshal([]byte(appDataRaw), &appData); err != nil {
-		return fmt.Errorf("%s: %w", op, err)
-	}
-
-	fp.account.setID(appData.UserID)
-	fp.Account().setLocale(appData.Locale)
-
-	fp.mu.Lock()
-	fp.csrfToken = appData.CSRFToken
-	fp.mu.Unlock()
-
-	return nil
+// SetBaseURL updates baseURL. It is not concurrency safe. Needed for tests.
+func (fp *Funpay) SetBaseURL(baseURL string) {
+	fp.baseURL = baseURL
 }
 
+// Request executes an HTTP request using the account's session.
+//
+// It handles:
+//   - Proxy configuration (if set),
+//   - Locale settings (path or query param),
+//   - Cookie management (session and golden key),
+//   - User-Agent header,
+//   - Response status code validation,
+//
+// Specific returns:
+//   - [*http.Response] and [ErrAccountUnauthorized] if status code equals 403,
+//   - [*http.Response] and [ErrToManyRequests] if status code equals 429,
+//   - [*http.Response] [ErrBadStatusCode] otherwise.
 func (fp *Funpay) Request(ctx context.Context, requestURL string, opts ...requestOpt) (*http.Response, error) {
 	const op = "Funpay.Request"
 
@@ -224,6 +219,10 @@ func (fp *Funpay) Request(ctx context.Context, requestURL string, opts ...reques
 	return resp, nil
 }
 
+// RequestHTML calls [Funpay.Request] and converting response as [*goquery.Document].
+// Updates [AppData] and account info (see [Funpay.Account]).
+//
+// Returns nil and [ErrAccountUnauthorized] if [account.ID] is zero.
 func (fp *Funpay) RequestHTML(ctx context.Context, requestURL string, opts ...requestOpt) (*goquery.Document, error) {
 	const op = "Funpay.RequestHTML"
 
@@ -251,4 +250,27 @@ func (fp *Funpay) RequestHTML(ctx context.Context, requestURL string, opts ...re
 	}
 
 	return doc, nil
+}
+
+func (fp *Funpay) updateAppData(doc *goquery.Document) error {
+	const op = "Funpay.updateAppData"
+
+	appDataRaw, ok := doc.Find("body").Attr("data-app-data")
+	if !ok {
+		return fmt.Errorf("%s: %w", op, ErrAccountUnauthorized)
+	}
+
+	var appData AppData
+	if err := json.Unmarshal([]byte(appDataRaw), &appData); err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+
+	fp.account.setID(appData.UserID)
+	fp.Account().setLocale(appData.Locale)
+
+	fp.mu.Lock()
+	fp.csrfToken = appData.CSRFToken
+	fp.mu.Unlock()
+
+	return nil
 }
