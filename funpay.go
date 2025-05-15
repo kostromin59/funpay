@@ -413,5 +413,5 @@ func (fp *Funpay) extractFields(doc *goquery.Document) LotFields {
 		fields[name] = field
 	})
 
-	return fields, nil
+	return fields
 }
