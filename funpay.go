@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"sync"
 
 	"github.com/PuerkitoBio/goquery"
@@ -263,3 +264,54 @@ func (fp *Funpay) updateAppData(doc *goquery.Document) error {
 
 	return nil
 }
+
+func (fp *Funpay) Lots(ctx context.Context, userID int64) (map[string][]string, error) {
+	const op = "Funpay.Lots"
+
+	reqURL, err := url.Parse(BaseURL)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+
+	reqURL = reqURL.JoinPath("users", fmt.Sprintf("%d", userID), "/")
+
+	doc, err := fp.RequestHTML(ctx, reqURL.String())
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+
+	offerUrls := doc.Find(".offer")
+	lots := make(map[string][]string)
+	for _, offer := range offerUrls.EachIter() {
+		nodeHref, ok := offer.Find("h3 a[href]").Attr("href")
+		if !ok {
+			continue
+		}
+
+		nodeURL, err := url.Parse(nodeHref)
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", op, err)
+		}
+
+		pathComponents := strings.Split(nodeURL.Path, "/")
+		if len(pathComponents) < 3 {
+			continue
+		}
+
+		urlElements := offer.Find("a.tc-item[href]")
+		urls := make([]string, 0, urlElements.Length())
+		urlElements.Each(func(i int, s *goquery.Selection) {
+			href, ok := s.Attr("href")
+			if !ok {
+				return
+			}
+			urls = append(urls, href)
+		})
+
+		lots[pathComponents[2]] = urls
+	}
+
+	return lots, nil
+}
+
+// func (fp *Funpay) GetLotFields(ctx context.Context, offerID string)
