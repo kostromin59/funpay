@@ -266,6 +266,7 @@ func (fp *Funpay) updateAppData(doc *goquery.Document) error {
 }
 
 // Returns nodeID: []{urls...}
+// TODO: cache
 func (fp *Funpay) Lots(ctx context.Context, userID int64) (map[string][]string, error) {
 	const op = "Funpay.Lots"
 
@@ -315,6 +316,7 @@ func (fp *Funpay) Lots(ctx context.Context, userID int64) (map[string][]string, 
 	return lots, nil
 }
 
+// TODO: cache
 func (fp *Funpay) GetLotFields(ctx context.Context, nodeID, offerID string) (LotFields, error) {
 	const op = "Funpay.GetLotFields"
 
