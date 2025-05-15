@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"strings"
 	"sync"
 
 	"github.com/PuerkitoBio/goquery"
@@ -22,6 +21,7 @@ const (
 
 type Funpay struct {
 	account *account
+	lots    *lots
 
 	csrfToken string
 	baseURL   string
@@ -34,6 +34,7 @@ type Funpay struct {
 func New(goldenKey, userAgent string) *Funpay {
 	return &Funpay{
 		account: newAccount(goldenKey, userAgent),
+		lots:    newLots(),
 		baseURL: BaseURL,
 	}
 }
@@ -73,6 +74,11 @@ func (fp *Funpay) UpdateLocale(ctx context.Context, locale Locale) error {
 // Account returns account info: id, username, balance, locale. [Funpay.RequestHTML] updates account info.
 func (fp *Funpay) Account() *account {
 	return fp.account
+}
+
+// Lots returns lots info. [Funpay.UpdateLots] updates lots info.
+func (fp *Funpay) Lots() *lots {
+	return fp.lots
 }
 
 // CSRFToken returns CSRF token extracted from [AppData]. CSRF token updates every call [Funpay.RequestHTML].
@@ -265,60 +271,32 @@ func (fp *Funpay) updateAppData(doc *goquery.Document) error {
 	return nil
 }
 
-// Returns nodeID: []{urls...}
-// TODO: cache
-func (fp *Funpay) Lots(ctx context.Context, userID int64) (map[string][]string, error) {
-	const op = "Funpay.Lots"
+func (fp *Funpay) UpdateLots(ctx context.Context, userID int64) error {
+	const op = "Funpay.UpdateLots"
 
 	reqURL, err := url.Parse(BaseURL)
 	if err != nil {
-		return nil, fmt.Errorf("%s: %w", op, err)
+		return fmt.Errorf("%s: %w", op, err)
 	}
 
 	reqURL = reqURL.JoinPath("users", fmt.Sprintf("%d", userID), "/")
 
 	doc, err := fp.RequestHTML(ctx, reqURL.String())
 	if err != nil {
-		return nil, fmt.Errorf("%s: %w", op, err)
+		return fmt.Errorf("%s: %w", op, err)
 	}
 
-	offerUrls := doc.Find(".offer")
-	lots := make(map[string][]string)
-	for _, offer := range offerUrls.EachIter() {
-		nodeHref, ok := offer.Find("h3 a[href]").Attr("href")
-		if !ok {
-			continue
-		}
-
-		nodeURL, err := url.Parse(nodeHref)
-		if err != nil {
-			return nil, fmt.Errorf("%s: %w", op, err)
-		}
-
-		pathComponents := strings.Split(nodeURL.Path, "/")
-		if len(pathComponents) < 3 {
-			continue
-		}
-
-		urlElements := offer.Find("a.tc-item[href]")
-		urls := make([]string, 0, urlElements.Length())
-		urlElements.Each(func(i int, s *goquery.Selection) {
-			href, ok := s.Attr("href")
-			if !ok {
-				return
-			}
-			urls = append(urls, href)
-		})
-
-		lots[pathComponents[2]] = urls
+	lots, err := fp.lots.extractLots(doc)
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
 	}
 
-	return lots, nil
+	fp.Lots().updateList(lots)
+
+	return nil
 }
 
-// TODO: cache
-// TODO: extract to lot module
-func (fp *Funpay) GetLotFields(ctx context.Context, nodeID, offerID string) (LotFields, error) {
+func (fp *Funpay) LotFields(ctx context.Context, nodeID, offerID string) (LotFields, error) {
 	const op = "Funpay.GetLotFields"
 
 	reqURL, err := url.Parse(BaseURL)
@@ -342,79 +320,5 @@ func (fp *Funpay) GetLotFields(ctx context.Context, nodeID, offerID string) (Lot
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 
-	return fp.extractFields(doc), nil
-}
-
-func (fp *Funpay) extractFields(doc *goquery.Document) LotFields {
-	fields := make(LotFields)
-	form := doc.Find("form")
-	form.Find("input[name]").Each(func(i int, s *goquery.Selection) {
-		name, ok := s.Attr("name")
-		if !ok {
-			return
-		}
-
-		switch s.AttrOr("type", "") {
-		case "checkbox":
-			field := LotField{
-				Variants: []string{"on", ""},
-			}
-			_, ok := s.Attr("checked")
-			if ok {
-				field.Value = "on"
-			}
-
-			fields[name] = field
-
-		default:
-			if name == FormCSRFToken {
-				return
-			}
-
-			value := s.AttrOr("value", "")
-			fields[name] = LotField{
-				Value: value,
-			}
-		}
-	})
-
-	form.Find("textarea[name]").Each(func(i int, s *goquery.Selection) {
-		name, ok := s.Attr("name")
-		if !ok {
-			return
-		}
-
-		value := s.Text()
-		fields[name] = LotField{
-			Value: value,
-		}
-	})
-
-	form.Find("select[name]").Each(func(i int, s *goquery.Selection) {
-		name, ok := s.Attr("name")
-		if !ok {
-			return
-		}
-
-		field := LotField{}
-
-		opts := s.Find("option[value]")
-		variants := make([]string, 0, opts.Length())
-		opts.Each(func(i int, s *goquery.Selection) {
-			value, ok := s.Attr("value")
-			if !ok {
-				return
-			}
-			variants = append(variants, value)
-			field.Variants = variants
-
-			if _, ok := s.Attr("selected"); ok {
-				field.Value = value
-			}
-		})
-
-		fields[name] = field
-	})
-
-	return fields
+	return fp.lots.extractFields(doc), nil
 }
