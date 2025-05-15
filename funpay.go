@@ -271,22 +271,17 @@ func (fp *Funpay) updateAppData(doc *goquery.Document) error {
 	return nil
 }
 
-func (fp *Funpay) UpdateLots(ctx context.Context, userID int64) error {
+// UpdateLots updates lots for current account. Use Funpay.Lots().List() to get lots.
+// Returns [ErrAccountUnauthorized] if user id equals 0.
+func (fp *Funpay) UpdateLots(ctx context.Context) error {
 	const op = "Funpay.UpdateLots"
 
-	reqURL, err := url.Parse(BaseURL)
-	if err != nil {
-		return fmt.Errorf("%s: %w", op, err)
+	id := fp.Account().ID()
+	if id == 0 {
+		return fmt.Errorf("%s: %w", op, ErrAccountUnauthorized)
 	}
 
-	reqURL = reqURL.JoinPath("users", fmt.Sprintf("%d", userID), "/")
-
-	doc, err := fp.RequestHTML(ctx, reqURL.String())
-	if err != nil {
-		return fmt.Errorf("%s: %w", op, err)
-	}
-
-	lots, err := fp.lots.extractLots(doc)
+	lots, err := fp.LotsByUser(context.Background(), id)
 	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)
 	}
@@ -296,6 +291,31 @@ func (fp *Funpay) UpdateLots(ctx context.Context, userID int64) error {
 	return nil
 }
 
+// LotsByUser loads lots for provided userID.
+func (fp *Funpay) LotsByUser(ctx context.Context, userID int64) (map[string][]string, error) {
+	const op = "Funpay.LotsByUser"
+
+	reqURL, err := url.Parse(BaseURL)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+
+	reqURL = reqURL.JoinPath("users", fmt.Sprintf("%d", userID), "/")
+
+	doc, err := fp.RequestHTML(ctx, reqURL.String())
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+
+	lots, err := fp.lots.extractLots(doc)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+
+	return lots, nil
+}
+
+// LotFields loads [LotFields] for nodeID (category) or offerID. Values will be filled with provided offerID.
 func (fp *Funpay) LotFields(ctx context.Context, nodeID, offerID string) (LotFields, error) {
 	const op = "Funpay.GetLotFields"
 
