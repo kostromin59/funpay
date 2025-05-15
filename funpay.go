@@ -353,7 +353,7 @@ func (fp *Funpay) LotFields(ctx context.Context, nodeID, offerID string) (LotFie
 // TODO: tests
 // SaveLot updates lot fields.
 func (fp *Funpay) SaveLot(ctx context.Context, offerID string, fields LotFields) error {
-	const op = "Funpay.UpdateLotFields"
+	const op = "Funpay.SaveLot"
 
 	body := url.Values{}
 
