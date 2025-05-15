@@ -28,9 +28,9 @@ Go library for [Funpay](https://funpay.com/).
   - [ ] Getting all messages
   - [ ] Getting new messages
   - [ ] Sending
-- [ ] Selling goods
-  - [ ] Get selling list
-  - [ ] Update goods
+- [ ] Lots
+  - [X] Get lots (need tests)
+  - [X] Update lot (need tests)
   - [ ] Remove goods
   - [ ] Creating goods
 - [ ] Deploy
