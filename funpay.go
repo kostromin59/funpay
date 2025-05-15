@@ -372,16 +372,6 @@ func (fp *Funpay) SaveLot(ctx context.Context, offerID string, fields LotFields)
 			"accept":           "*/*",
 			"x-requested-with": "XMLHttpRequest",
 		}),
-		RequestWithCookies([]*http.Cookie{
-			{
-				Name:     "cy",
-				Value:    "rub",
-				Domain:   "." + Domain,
-				Path:     "/",
-				HttpOnly: true,
-				Secure:   true,
-			},
-		}),
 	)
 	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)
