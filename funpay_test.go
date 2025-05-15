@@ -432,7 +432,7 @@ func TestFunpay_RequestHTML(t *testing.T) {
 		}
 
 		if fp.Account().Balance() != 100 {
-			t.Errorf("expected balance 100, got %f", fp.Account().Balance())
+			t.Errorf("expected balance 100, got %d", fp.Account().Balance())
 		}
 
 		if doc == nil {
@@ -541,7 +541,7 @@ func TestFunpay_RequestHTML(t *testing.T) {
 		}
 
 		if fp.Account().Balance() != 200 {
-			t.Errorf("expected balance 200, got %f", fp.Account().Balance())
+			t.Errorf("expected balance 200, got %d", fp.Account().Balance())
 		}
 
 		if fp.Account().Locale() != funpay.LocaleEN {

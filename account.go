@@ -22,7 +22,7 @@ type account struct {
 
 	id       int64
 	username string
-	balance  float64
+	balance  int64
 	locale   Locale
 
 	mu sync.RWMutex
@@ -77,7 +77,7 @@ func (a *account) Username() string {
 }
 
 // Username returns the account's username. Must be loaded after update.
-func (a *account) Balance() float64 {
+func (a *account) Balance() int64 {
 	a.mu.RLock()
 	balance := a.balance
 	a.mu.RUnlock()
@@ -103,9 +103,9 @@ func (a *account) update(doc *goquery.Document) error {
 	rawBalance := doc.Find(".badge-balance").First().Text()
 	balanceStr := onlyDigitsRe.ReplaceAllString(rawBalance, "")
 	balanceStr = strings.TrimSpace(balanceStr)
-	var balance float64
+	var balance int64
 	if balanceStr != "" {
-		parsedBalance, err := strconv.ParseFloat(balanceStr, 64)
+		parsedBalance, err := strconv.ParseInt(balanceStr, 0, 64)
 		if err != nil {
 			return fmt.Errorf("%s: %w", op, err)
 		}

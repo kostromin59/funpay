@@ -23,6 +23,8 @@ const (
 
 	// HeaderUserAgent is the header name for user agent.
 	HeaderUserAgent = "User-Agent"
+
+	FormCSRFToken = "csrf_token"
 )
 
 // requestOpts contains configurable parameters for HTTP requests.
