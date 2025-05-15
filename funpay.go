@@ -314,7 +314,7 @@ func (fp *Funpay) Lots(ctx context.Context, userID int64) (map[string][]string, 
 	return lots, nil
 }
 
-func (fp *Funpay) GetLotFields(ctx context.Context, offerID string) (map[string]LotField, error) {
+func (fp *Funpay) GetLotFields(ctx context.Context, offerID string) (LotFields, error) {
 	const op = "Funpay.GetLotFields"
 
 	reqURL, err := url.Parse(BaseURL)
@@ -333,7 +333,7 @@ func (fp *Funpay) GetLotFields(ctx context.Context, offerID string) (map[string]
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 
-	fields := make(map[string]LotField)
+	fields := make(LotFields)
 	form := doc.Find("form")
 	form.Find("input[name]").Each(func(i int, s *goquery.Selection) {
 		name, ok := s.Attr("name")
