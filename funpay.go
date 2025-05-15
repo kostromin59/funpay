@@ -317,6 +317,7 @@ func (fp *Funpay) Lots(ctx context.Context, userID int64) (map[string][]string, 
 }
 
 // TODO: cache
+// TODO: extract to lot module
 func (fp *Funpay) GetLotFields(ctx context.Context, nodeID, offerID string) (LotFields, error) {
 	const op = "Funpay.GetLotFields"
 
