@@ -1,6 +1,7 @@
 package funpay
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -152,7 +153,7 @@ func (fp *Funpay) Request(ctx context.Context, requestURL string, opts ...reques
 	}
 
 	locale := fp.Account().Locale()
-	if locale != LocaleRU {
+	if locale != LocaleRU && reqOpts.method == http.MethodGet {
 		path := reqURL.Path
 		if path == "" {
 			path = "/"
@@ -165,15 +166,6 @@ func (fp *Funpay) Request(ctx context.Context, requestURL string, opts ...reques
 	req, err := http.NewRequestWithContext(ctx, reqOpts.method, reqURL.String(), reqOpts.body)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
-	}
-
-	for _, c := range reqOpts.cookies {
-		req.AddCookie(c)
-	}
-
-	req.Header.Set(HeaderUserAgent, fp.Account().UserAgent())
-	for name, value := range reqOpts.headers {
-		req.Header.Add(name, value)
 	}
 
 	for _, c := range fp.Cookies() {
@@ -191,9 +183,25 @@ func (fp *Funpay) Request(ctx context.Context, requestURL string, opts ...reques
 
 	req.AddCookie(goldenKeyCookie)
 
+	for _, c := range reqOpts.cookies {
+		req.AddCookie(c)
+	}
+
+	req.Header.Set(HeaderUserAgent, fp.Account().UserAgent())
+	for name, value := range reqOpts.headers {
+		req.Header.Add(name, value)
+	}
+
 	resp, err := c.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+
+	cookies := resp.Cookies()
+	if len(cookies) != 0 {
+		fp.mu.Lock()
+		fp.cookies = cookies
+		fp.mu.Unlock()
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
@@ -207,10 +215,6 @@ func (fp *Funpay) Request(ctx context.Context, requestURL string, opts ...reques
 
 		return resp, fmt.Errorf("%s: %w (%d)", op, ErrBadStatusCode, resp.StatusCode)
 	}
-
-	fp.mu.Lock()
-	defer fp.mu.Unlock()
-	fp.cookies = resp.Cookies()
 
 	return resp, nil
 }
@@ -317,7 +321,7 @@ func (fp *Funpay) LotsByUser(ctx context.Context, userID int64) (map[string][]st
 
 // LotFields loads [LotFields] for nodeID (category) or offerID. Values will be filled with provided offerID.
 func (fp *Funpay) LotFields(ctx context.Context, nodeID, offerID string) (LotFields, error) {
-	const op = "Funpay.GetLotFields"
+	const op = "Funpay.LotFields"
 
 	reqURL, err := url.Parse(BaseURL)
 	if err != nil {
@@ -341,4 +345,42 @@ func (fp *Funpay) LotFields(ctx context.Context, nodeID, offerID string) (LotFie
 	}
 
 	return fp.lots.extractFields(doc), nil
+}
+
+func (fp *Funpay) SaveLot(ctx context.Context, offerID string, fields LotFields) error {
+	const op = "Funpay.UpdateLotFields"
+
+	body := url.Values{}
+
+	for name, v := range fields {
+		body.Set(name, v.Value)
+	}
+
+	body.Set(FormCSRFToken, fp.CSRFToken())
+	body.Set("location", "trade")
+
+	_, err := fp.Request(ctx, BaseURL+"/lots/offerSave",
+		RequestWithMethod(http.MethodPost),
+		RequestWithBody(bytes.NewBufferString(body.Encode())),
+		RequestWithHeaders(map[string]string{
+			"content-type":     "application/x-www-form-urlencoded; charset=UTF-8",
+			"accept":           "*/*",
+			"x-requested-with": "XMLHttpRequest",
+		}),
+		RequestWithCookies([]*http.Cookie{
+			{
+				Name:     "cy",
+				Value:    "rub",
+				Domain:   "." + Domain,
+				Path:     "/",
+				HttpOnly: true,
+				Secure:   true,
+			},
+		}),
+	)
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+
+	return nil
 }
