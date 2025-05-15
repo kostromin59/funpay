@@ -314,4 +314,94 @@ func (fp *Funpay) Lots(ctx context.Context, userID int64) (map[string][]string, 
 	return lots, nil
 }
 
-// func (fp *Funpay) GetLotFields(ctx context.Context, offerID string)
+func (fp *Funpay) GetLotFields(ctx context.Context, offerID string) (map[string]LotField, error) {
+	const op = "Funpay.GetLotFields"
+
+	reqURL, err := url.Parse(BaseURL)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+
+	reqURL = reqURL.JoinPath("lots", "offerEdit")
+
+	q := reqURL.Query()
+	q.Set("offer", offerID)
+	reqURL.RawQuery = q.Encode()
+
+	doc, err := fp.RequestHTML(ctx, reqURL.String())
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+
+	fields := make(map[string]LotField)
+	form := doc.Find("form")
+	form.Find("input[name]").Each(func(i int, s *goquery.Selection) {
+		name, ok := s.Attr("name")
+		if !ok {
+			return
+		}
+
+		switch s.AttrOr("type", "") {
+		case "checkbox":
+			field := LotField{
+				Variants: []string{"on", ""},
+			}
+			_, ok := s.Attr("checked")
+			if ok {
+				field.Value = "on"
+			}
+
+			fields[name] = field
+
+		default:
+			if name == FormCSRFToken {
+				return
+			}
+
+			value := s.AttrOr("value", "")
+			fields[name] = LotField{
+				Value: value,
+			}
+		}
+	})
+
+	form.Find("textarea[name]").Each(func(i int, s *goquery.Selection) {
+		name, ok := s.Attr("name")
+		if !ok {
+			return
+		}
+
+		value := s.Text()
+		fields[name] = LotField{
+			Value: value,
+		}
+	})
+
+	form.Find("select[name]").Each(func(i int, s *goquery.Selection) {
+		name, ok := s.Attr("name")
+		if !ok {
+			return
+		}
+
+		field := LotField{}
+
+		opts := s.Find("option[value]")
+		variants := make([]string, 0, opts.Length())
+		opts.Each(func(i int, s *goquery.Selection) {
+			value, ok := s.Attr("value")
+			if !ok {
+				return
+			}
+			variants = append(variants, value)
+			field.Variants = variants
+
+			if _, ok := s.Attr("selected"); ok {
+				field.Value = value
+			}
+		})
+
+		fields[name] = field
+	})
+
+	return fields, nil
+}
