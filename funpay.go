@@ -74,6 +74,14 @@ func (fp *Funpay) Account() *account {
 	return fp.account
 }
 
+// CSRFToken returns CSRF token extracted from [AppData]. CSRF token updates every call [Funpay.RequestHTML].
+func (fp *Funpay) CSRFToken() string {
+	fp.mu.RLock()
+	csrf := fp.csrfToken
+	fp.mu.RUnlock()
+	return csrf
+}
+
 // Cookies returns a safe copy of all session cookies.
 func (fp *Funpay) Cookies() []*http.Cookie {
 	fp.mu.RLock()
