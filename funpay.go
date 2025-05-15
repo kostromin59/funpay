@@ -265,6 +265,7 @@ func (fp *Funpay) updateAppData(doc *goquery.Document) error {
 	return nil
 }
 
+// Returns nodeID: []{urls...}
 func (fp *Funpay) Lots(ctx context.Context, userID int64) (map[string][]string, error) {
 	const op = "Funpay.Lots"
 
