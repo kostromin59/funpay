@@ -315,7 +315,7 @@ func (fp *Funpay) Lots(ctx context.Context, userID int64) (map[string][]string, 
 	return lots, nil
 }
 
-func (fp *Funpay) GetLotFields(ctx context.Context, offerID string) (LotFields, error) {
+func (fp *Funpay) GetLotFields(ctx context.Context, nodeID, offerID string) (LotFields, error) {
 	const op = "Funpay.GetLotFields"
 
 	reqURL, err := url.Parse(BaseURL)
@@ -326,7 +326,12 @@ func (fp *Funpay) GetLotFields(ctx context.Context, offerID string) (LotFields, 
 	reqURL = reqURL.JoinPath("lots", "offerEdit")
 
 	q := reqURL.Query()
-	q.Set("offer", offerID)
+	if offerID != "" {
+		q.Set("offer", offerID)
+	}
+	if nodeID != "" {
+		q.Set("node", nodeID)
+	}
 	reqURL.RawQuery = q.Encode()
 
 	doc, err := fp.RequestHTML(ctx, reqURL.String())
@@ -334,6 +339,10 @@ func (fp *Funpay) GetLotFields(ctx context.Context, offerID string) (LotFields, 
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 
+	return fp.extractFields(doc), nil
+}
+
+func (fp *Funpay) extractFields(doc *goquery.Document) LotFields {
 	fields := make(LotFields)
 	form := doc.Find("form")
 	form.Find("input[name]").Each(func(i int, s *goquery.Selection) {
