@@ -40,7 +40,8 @@ func New(goldenKey, userAgent string) *Funpay {
 	}
 }
 
-// Update calls [Funpay.RequestHTML].
+// Update calls [Funpay.RequestHTML]. You should call it every 40-60 minutes to update PHPSESSIONID cookie.
+// [Funpay.Request] saves all cookies from response if they are not empty.
 func (fp *Funpay) Update(ctx context.Context) error {
 	const op = "Funpay.Update"
 
@@ -275,9 +276,8 @@ func (fp *Funpay) updateAppData(doc *goquery.Document) error {
 	return nil
 }
 
-// TODO: tests
 // UpdateLots updates lots for current account. Use Funpay.Lots().List() to get lots.
-// Returns [ErrAccountUnauthorized] if user id equals 0.
+// Returns [ErrAccountUnauthorized] if user id equals 0. Call [Funpay.Update] to update account info.
 func (fp *Funpay) UpdateLots(ctx context.Context) error {
 	const op = "Funpay.UpdateLots"
 
@@ -296,12 +296,11 @@ func (fp *Funpay) UpdateLots(ctx context.Context) error {
 	return nil
 }
 
-// TODO: tests
 // LotsByUser loads lots for provided userID.
 func (fp *Funpay) LotsByUser(ctx context.Context, userID int64) (map[string][]string, error) {
 	const op = "Funpay.LotsByUser"
 
-	reqURL, err := url.Parse(BaseURL)
+	reqURL, err := url.Parse(fp.baseURL)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
@@ -321,12 +320,11 @@ func (fp *Funpay) LotsByUser(ctx context.Context, userID int64) (map[string][]st
 	return lots, nil
 }
 
-// TODO: tests
 // LotFields loads [LotFields] for nodeID (category) or offerID. Values will be filled with provided offerID.
 func (fp *Funpay) LotFields(ctx context.Context, nodeID, offerID string) (LotFields, error) {
 	const op = "Funpay.LotFields"
 
-	reqURL, err := url.Parse(BaseURL)
+	reqURL, err := url.Parse(fp.baseURL)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
@@ -350,8 +348,7 @@ func (fp *Funpay) LotFields(ctx context.Context, nodeID, offerID string) (LotFie
 	return fp.lots.extractFields(doc), nil
 }
 
-// TODO: tests
-// SaveLot updates lot fields.
+// SaveLot makes request to /lots/offerSave. Fields must contains offer_id for valid request.
 func (fp *Funpay) SaveLot(ctx context.Context, fields LotFields) error {
 	const op = "Funpay.SaveLot"
 
@@ -364,7 +361,7 @@ func (fp *Funpay) SaveLot(ctx context.Context, fields LotFields) error {
 	body.Set(FormCSRFToken, fp.CSRFToken())
 	body.Set("location", "trade")
 
-	_, err := fp.Request(ctx, BaseURL+"/lots/offerSave",
+	_, err := fp.Request(ctx, fp.baseURL+"/lots/offerSave",
 		RequestWithMethod(http.MethodPost),
 		RequestWithBody(bytes.NewBufferString(body.Encode())),
 		RequestWithHeaders(map[string]string{
