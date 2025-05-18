@@ -40,7 +40,8 @@ func New(goldenKey, userAgent string) *Funpay {
 	}
 }
 
-// Update calls [Funpay.RequestHTML].
+// Update calls [Funpay.RequestHTML]. You should call it every 40-60 minutes to update PHPSESSIONID cookie.
+// [Funpay.Request] saves all cookies from response if they are not empty.
 func (fp *Funpay) Update(ctx context.Context) error {
 	const op = "Funpay.Update"
 
