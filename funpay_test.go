@@ -967,3 +967,65 @@ func TestFunpay_SaveLot(t *testing.T) {
 		}
 	})
 }
+
+func TestFunpay_UpdateLots(t *testing.T) {
+	t.Run("successful lots update", func(t *testing.T) {
+		accountTS := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "text/html")
+			fmt.Fprint(w, `
+                <html>
+                    <body data-app-data='{"userId":456,"csrf-token":"new-csrf","locale":"en"}'>
+                        <div class="user-link-name">test_user</div>
+                        <div class="badge-balance">100 ₽</div>
+                    </body>
+                </html>
+            `)
+		}))
+		defer accountTS.Close()
+
+		fp := funpay.New("test_key", "test_agent")
+		fp.SetBaseURL(accountTS.URL)
+
+		if err := fp.Update(context.Background()); err != nil {
+			t.Fatalf("Update failed: %v", err)
+		}
+
+		lotsTS := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if !strings.HasSuffix(r.URL.Path, "/users/456/") {
+				t.Errorf("unexpected path: %s", r.URL.Path)
+			}
+			w.Header().Set("Content-Type", "text/html")
+			fmt.Fprint(w, `
+                <html>
+                     <body data-app-data='{"userId":456,"csrf-token":"new-csrf","locale":"en"}'>
+                        <div class="offer">
+                            <h3><a href="/games/game1/">Game 1</a></h3>
+                            <a class="tc-item" href="/lots/lot1?id=1"></a>
+                        </div>
+                    </body>
+                </html>
+            `)
+		}))
+		defer lotsTS.Close()
+
+		fp.SetBaseURL(lotsTS.URL)
+		err := fp.UpdateLots(context.Background())
+		if err != nil {
+			t.Fatalf("UpdateLots failed: %v", err)
+		}
+
+		// Проверяем, что лоты обновились (косвенно через Lots().List())
+		if len(fp.Lots().List()) == 0 {
+			t.Error("expected lots to be updated")
+		}
+	})
+
+	t.Run("unauthorized user", func(t *testing.T) {
+		fp := funpay.New("test_key", "test_agent")
+
+		err := fp.UpdateLots(context.Background())
+		if !errors.Is(err, funpay.ErrAccountUnauthorized) {
+			t.Fatalf("expected ErrAccountUnauthorized, got %v", err)
+		}
+	})
+}
