@@ -41,12 +41,12 @@ func main() {
 		return
 	}
 
-  // Changing field
+  // Change field
   fields["price"] = funpay.LotField{
 		Value: "1500",
 	}
 
-  // Saving lot (offer)
+  // Save lot (offer)
   if err := fp.SaveLot(context.Background(), fields); err != nil {
 		log.Println(err.Error())
 		return
