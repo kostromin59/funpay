@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -640,6 +641,122 @@ func TestFunpay_UpdateLocale(t *testing.T) {
 		err := fp.UpdateLocale(context.Background(), funpay.LocaleEN)
 		if !errors.Is(err, funpay.ErrAccountUnauthorized) {
 			t.Fatalf("expected ErrAccountUnauthorized, got %v", err)
+		}
+	})
+}
+
+func TestFunpay_LotsByUser(t *testing.T) {
+	t.Run("successful lots retrieval", func(t *testing.T) {
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if !strings.HasSuffix(r.URL.Path, "/users/123/") {
+				t.Errorf("expected path to end with /users/123/, got %s", r.URL.Path)
+			}
+
+			w.Header().Set("Content-Type", "text/html")
+			fmt.Fprint(w, `
+				<html>
+					<body data-app-data='{"userId":123,"csrf-token":"test","locale":"ru"}'>
+						<div class="offer">
+							<h3><a href="/games/game1/">Game 1</a></h3>
+							<a class="tc-item" href="/lots/lot1?id=1"></a>
+							<a class="tc-item" href="/lots/lot2?id=2"></a>
+						</div>
+						<div class="offer">
+							<h3><a href="/games/game2/">Game 2</a></h3>
+							<a class="tc-item" href="/lots/lot3?id=3"></a>
+						</div>
+					</body>
+				</html>
+			`)
+		}))
+		defer ts.Close()
+
+		fp := funpay.New("test_key", "test_agent")
+		fp.SetBaseURL(ts.URL)
+
+		lots, err := fp.LotsByUser(context.Background(), 123)
+		if err != nil {
+			t.Fatalf("LotsByUser failed: %v", err)
+		}
+
+		expected := map[string][]string{
+			"game1": {"1", "2"},
+			"game2": {"3"},
+		}
+
+		if !reflect.DeepEqual(lots, expected) {
+			t.Errorf("expected %v, got %v", expected, lots)
+		}
+	})
+
+	t.Run("invalid user URL", func(t *testing.T) {
+		fp := funpay.New("test_key", "test_agent")
+		fp.SetBaseURL("http://invalid.url:12345")
+
+		_, err := fp.LotsByUser(context.Background(), 123)
+		if err == nil {
+			t.Fatal("expected error for invalid URL, got nil")
+		}
+	})
+
+	t.Run("unauthorized request", func(t *testing.T) {
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusForbidden)
+		}))
+		defer ts.Close()
+
+		fp := funpay.New("invalid_key", "test_agent")
+		fp.SetBaseURL(ts.URL)
+
+		_, err := fp.LotsByUser(context.Background(), 123)
+		if !errors.Is(err, funpay.ErrAccountUnauthorized) {
+			t.Fatalf("expected ErrAccountUnauthorized, got %v", err)
+		}
+	})
+
+	t.Run("no offers found", func(t *testing.T) {
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "text/html")
+			fmt.Fprint(w, `<html>
+				<body data-app-data='{"userId":123,"csrf-token":"test","locale":"ru"}'></body>
+			</html>`)
+		}))
+		defer ts.Close()
+
+		fp := funpay.New("test_key", "test_agent")
+		fp.SetBaseURL(ts.URL)
+
+		lots, err := fp.LotsByUser(context.Background(), 123)
+		if err != nil {
+			t.Fatalf("LotsByUser failed: %v", err)
+		}
+
+		if len(lots) != 0 {
+			t.Errorf("expected empty map, got %v", lots)
+		}
+	})
+
+	t.Run("malformed href in offer", func(t *testing.T) {
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "text/html")
+			fmt.Fprint(w, `
+				<html>
+					<body data-app-data='{"userId":123,"csrf-token":"test","locale":"ru"}'>
+						<div class="offer">
+							<h3><a href=":invalid:url">Game 1</a></h3>
+						</div>
+					</body>
+				</html>
+			`)
+		}))
+		defer ts.Close()
+
+		fp := funpay.New("test_key", "test_agent")
+		fp.SetBaseURL(ts.URL)
+
+		_, err := fp.LotsByUser(context.Background(), 123)
+		if err == nil {
+			t.Fatal("expected error for malformed URL, got nil")
 		}
 	})
 }

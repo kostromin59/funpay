@@ -296,12 +296,11 @@ func (fp *Funpay) UpdateLots(ctx context.Context) error {
 	return nil
 }
 
-// TODO: tests
 // LotsByUser loads lots for provided userID.
 func (fp *Funpay) LotsByUser(ctx context.Context, userID int64) (map[string][]string, error) {
 	const op = "Funpay.LotsByUser"
 
-	reqURL, err := url.Parse(BaseURL)
+	reqURL, err := url.Parse(fp.baseURL)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
@@ -326,7 +325,7 @@ func (fp *Funpay) LotsByUser(ctx context.Context, userID int64) (map[string][]st
 func (fp *Funpay) LotFields(ctx context.Context, nodeID, offerID string) (LotFields, error) {
 	const op = "Funpay.LotFields"
 
-	reqURL, err := url.Parse(BaseURL)
+	reqURL, err := url.Parse(fp.baseURL)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
