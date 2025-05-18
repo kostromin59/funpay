@@ -5,6 +5,12 @@ Go library for [Funpay](https://funpay.com/).
 > [!important]
 > This library is currently developing!
 
+## Installation
+
+```sh
+go get github.com/kostromin59/funpay
+```
+
 ## Example usage
 
 ```go
