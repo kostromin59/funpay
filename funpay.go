@@ -320,7 +320,6 @@ func (fp *Funpay) LotsByUser(ctx context.Context, userID int64) (map[string][]st
 	return lots, nil
 }
 
-// TODO: tests
 // LotFields loads [LotFields] for nodeID (category) or offerID. Values will be filled with provided offerID.
 func (fp *Funpay) LotFields(ctx context.Context, nodeID, offerID string) (LotFields, error) {
 	const op = "Funpay.LotFields"

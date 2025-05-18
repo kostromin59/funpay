@@ -760,3 +760,166 @@ func TestFunpay_LotsByUser(t *testing.T) {
 		}
 	})
 }
+
+func TestFunpay_LotFields(t *testing.T) {
+	t.Run("successful fields retrieval with offerID", func(t *testing.T) {
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Query().Get("offer") != "123" {
+				t.Errorf("expected offer=123, got %s", r.URL.Query().Get("offer"))
+			}
+
+			w.Header().Set("Content-Type", "text/html")
+			fmt.Fprint(w, `
+				<html>
+					<body data-app-data='{"userId":123,"csrf-token":"test","locale":"ru"}'>
+						<form>
+							<input type="text" name="title" value="Test Title">
+							<input type="checkbox" name="active" checked>
+							<textarea name="description">Test Description</textarea>
+							<select name="category">
+								<option value="1">Category 1</option>
+								<option value="2" selected>Category 2</option>
+							</select>
+						</form>
+					</body>
+				</html>
+			`)
+		}))
+		defer ts.Close()
+
+		fp := funpay.New("test_key", "test_agent")
+		fp.SetBaseURL(ts.URL)
+
+		fields, err := fp.LotFields(context.Background(), "", "123")
+		if err != nil {
+			t.Fatalf("LotFields failed: %v", err)
+		}
+
+		expected := funpay.LotFields{
+			"title":       {Value: "Test Title"},
+			"active":      {Value: "on", Variants: []string{"on", ""}},
+			"description": {Value: "Test Description"},
+			"category":    {Value: "2", Variants: []string{"1", "2"}},
+		}
+
+		if !reflect.DeepEqual(fields, expected) {
+			t.Errorf("expected %+v, got %+v", expected, fields)
+		}
+	})
+
+	t.Run("successful fields retrieval with nodeID", func(t *testing.T) {
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Query().Get("node") != "456" {
+				t.Errorf("expected node=456, got %s", r.URL.Query().Get("node"))
+			}
+
+			w.Header().Set("Content-Type", "text/html")
+			fmt.Fprint(w, `
+				<html>
+					<body data-app-data='{"userId":123,"csrf-token":"test","locale":"ru"}'>
+						<form>
+							<input type="text" name="title" value="New Lot">
+						</form>
+					</body>
+				</html>
+			`)
+		}))
+		defer ts.Close()
+
+		fp := funpay.New("test_key", "test_agent")
+		fp.SetBaseURL(ts.URL)
+
+		fields, err := fp.LotFields(context.Background(), "456", "")
+		if err != nil {
+			t.Fatalf("LotFields failed: %v", err)
+		}
+
+		expected := funpay.LotFields{
+			"title": {Value: "New Lot"},
+		}
+
+		if !reflect.DeepEqual(fields, expected) {
+			t.Errorf("expected %+v, got %+v", expected, fields)
+		}
+	})
+
+	t.Run("invalid base URL", func(t *testing.T) {
+		fp := funpay.New("test_key", "test_agent")
+		fp.SetBaseURL("http://invalid.url:12345")
+
+		_, err := fp.LotFields(context.Background(), "456", "")
+		if err == nil {
+			t.Fatal("expected error for invalid URL, got nil")
+		}
+	})
+
+	t.Run("unauthorized request", func(t *testing.T) {
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusForbidden)
+		}))
+		defer ts.Close()
+
+		fp := funpay.New("invalid_key", "test_agent")
+		fp.SetBaseURL(ts.URL)
+
+		_, err := fp.LotFields(context.Background(), "456", "")
+		if !errors.Is(err, funpay.ErrAccountUnauthorized) {
+			t.Fatalf("expected ErrAccountUnauthorized, got %v", err)
+		}
+	})
+
+	t.Run("empty form fields", func(t *testing.T) {
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "text/html")
+			fmt.Fprint(w, `
+				<html>
+					<body data-app-data='{"userId":123,"csrf-token":"test","locale":"ru"}'>
+						<form></form>
+					</body>
+				</html>
+			`)
+		}))
+		defer ts.Close()
+
+		fp := funpay.New("test_key", "test_agent")
+		fp.SetBaseURL(ts.URL)
+
+		fields, err := fp.LotFields(context.Background(), "456", "")
+		if err != nil {
+			t.Fatalf("LotFields failed: %v", err)
+		}
+
+		if len(fields) != 0 {
+			t.Errorf("expected empty fields, got %+v", fields)
+		}
+	})
+
+	t.Run("ignores CSRF token field", func(t *testing.T) {
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "text/html")
+			fmt.Fprint(w, `
+				<html>
+					<body data-app-data='{"userId":123,"csrf-token":"test","locale":"ru"}'>
+						<form>
+							<input type="hidden" name="csrf_token" value="should-be-ignored">
+							<input type="text" name="title" value="Test Title">
+						</form>
+					</body>
+				</html>
+			`)
+		}))
+		defer ts.Close()
+
+		fp := funpay.New("test_key", "test_agent")
+		fp.SetBaseURL(ts.URL)
+
+		fields, err := fp.LotFields(context.Background(), "456", "")
+		if err != nil {
+			t.Fatalf("LotFields failed: %v", err)
+		}
+
+		if _, exists := fields["csrf-token"]; exists {
+			t.Error("expected csrf-token field to be ignored")
+		}
+	})
+}
