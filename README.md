@@ -29,11 +29,11 @@ Go library for [Funpay](https://funpay.com/).
   - [ ] Getting new messages
   - [ ] Sending
 - [ ] Lots
-  - [X] Get fields (need tests) 
-  - [X] Get lots (need tests)
-  - [X] Update lot (need tests)
-  - [ ] Remove goods
-  - [ ] Creating goods
+  - [X] Get fields
+  - [X] Get lots
+  - [X] Update lot
+  - [ ] Remove lots
+  - [ ] Create lot
 - [ ] Deploy
   - [ ] Deploy into pkg.go.dev
   - [ ] Improve documentation
