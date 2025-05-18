@@ -275,9 +275,8 @@ func (fp *Funpay) updateAppData(doc *goquery.Document) error {
 	return nil
 }
 
-// TODO: tests
 // UpdateLots updates lots for current account. Use Funpay.Lots().List() to get lots.
-// Returns [ErrAccountUnauthorized] if user id equals 0.
+// Returns [ErrAccountUnauthorized] if user id equals 0. Call [Funpay.Update] to update account info.
 func (fp *Funpay) UpdateLots(ctx context.Context) error {
 	const op = "Funpay.UpdateLots"
 
@@ -348,8 +347,7 @@ func (fp *Funpay) LotFields(ctx context.Context, nodeID, offerID string) (LotFie
 	return fp.lots.extractFields(doc), nil
 }
 
-// TODO: tests
-// SaveLot updates lot fields.
+// SaveLot makes request to /lots/offerSave. Fields must contains offer_id for valid request.
 func (fp *Funpay) SaveLot(ctx context.Context, fields LotFields) error {
 	const op = "Funpay.SaveLot"
 
@@ -362,7 +360,7 @@ func (fp *Funpay) SaveLot(ctx context.Context, fields LotFields) error {
 	body.Set(FormCSRFToken, fp.CSRFToken())
 	body.Set("location", "trade")
 
-	_, err := fp.Request(ctx, BaseURL+"/lots/offerSave",
+	_, err := fp.Request(ctx, fp.baseURL+"/lots/offerSave",
 		RequestWithMethod(http.MethodPost),
 		RequestWithBody(bytes.NewBufferString(body.Encode())),
 		RequestWithHeaders(map[string]string{

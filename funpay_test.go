@@ -923,3 +923,47 @@ func TestFunpay_LotFields(t *testing.T) {
 		}
 	})
 }
+
+func TestFunpay_SaveLot(t *testing.T) {
+	t.Run("successful request", func(t *testing.T) {
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Проверяем только базовые требования
+			if r.Method != http.MethodPost {
+				t.Error("expected POST request")
+			}
+			w.WriteHeader(http.StatusOK)
+		}))
+		defer ts.Close()
+
+		fp := funpay.New("test_key", "test_agent")
+		fp.SetBaseURL(ts.URL)
+
+		err := fp.SaveLot(context.Background(), funpay.LotFields{
+			"offer_id": {Value: "123"},
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	t.Run("missing offer_id", func(t *testing.T) {
+		fp := funpay.New("test_key", "test_agent")
+
+		err := fp.SaveLot(context.Background(), funpay.LotFields{})
+		if err == nil {
+			t.Error("expected error when offer_id is missing")
+		}
+	})
+
+	t.Run("request error handling", func(t *testing.T) {
+		fp := funpay.New("test_key", "test_agent")
+		fp.SetBaseURL("http://unreachable-url")
+
+		err := fp.SaveLot(context.Background(), funpay.LotFields{
+			"offer_id": {Value: "123"},
+		})
+		if err == nil {
+			t.Error("expected error when request fails")
+		}
+	})
+}
