@@ -348,7 +348,12 @@ func (fp *Funpay) LotFields(ctx context.Context, nodeID, offerID string) (LotFie
 	return fp.lots.extractFields(doc), nil
 }
 
-// SaveLot makes request to /lots/offerSave. Fields must contains offer_id for valid request.
+// SaveLot makes request to /lots/offerSave. Use [Funpay.LotFields] to get fields.
+//
+//	Fields:
+//	- Provide offer_id to update lot;
+//	- Set offer_id = "0" to create lot;
+//	- Set deleted = "1" to delete lot.
 func (fp *Funpay) SaveLot(ctx context.Context, fields LotFields) error {
 	const op = "Funpay.SaveLot"
 

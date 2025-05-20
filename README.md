@@ -94,8 +94,8 @@ func main() {
   - [X] Get fields
   - [X] Get lots
   - [X] Update lot
-  - [ ] Remove lots
-  - [ ] Create lot
+  - [X] Delete lot
+  - [X] Create lot
 - [ ] Deploy
-  - [ ] Deploy into pkg.go.dev
+  - [X] Deploy into pkg.go.dev
   - [ ] Improve documentation
