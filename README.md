@@ -90,7 +90,7 @@ func main() {
   - [ ] Getting all messages
   - [ ] Getting new messages
   - [ ] Sending
-- [ ] Lots
+- [X] Lots
   - [X] Get fields
   - [X] Get lots
   - [X] Update lot
