@@ -37,7 +37,7 @@ const (
 )
 
 // requestOpts contains configurable parameters for HTTP requests.
-// Used internally by Account.Request() to customize request behavior.
+// Used internally by [Funpay.Request] to customize request behavior.
 type requestOpts struct {
 	method  string
 	body    io.Reader
