@@ -17,6 +17,15 @@ var (
 	ErrBadStatusCode = errors.New("bad status code")
 )
 
+var (
+	// RequestPostHeaders contains content-type, accept and x-requested-with headers. Copy these values to your headers if needed.
+	RequestPostHeaders = map[string]string{
+		"content-type":     "application/x-www-form-urlencoded; charset=UTF-8",
+		"accept":           "*/*",
+		"x-requested-with": "XMLHttpRequest",
+	}
+)
+
 const (
 	// CookieGoldenKey is the cookie name for golden key.
 	CookieGoldenKey = "golden_key"
@@ -28,7 +37,7 @@ const (
 )
 
 // requestOpts contains configurable parameters for HTTP requests.
-// Used internally by Account.Request() to customize request behavior.
+// Used internally by [Funpay.Request] to customize request behavior.
 type requestOpts struct {
 	method  string
 	body    io.Reader
