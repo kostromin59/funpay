@@ -247,7 +247,7 @@ func (l *Lots) UpdateLots(ctx context.Context) error {
 		return fmt.Errorf("%s: %w", op, ErrAccountUnauthorized)
 	}
 
-	lots, err := l.LotsByUser(context.Background(), id)
+	lots, err := l.LotsByUser(ctx, id)
 	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)
 	}
