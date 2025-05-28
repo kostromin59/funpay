@@ -13,6 +13,7 @@ go get github.com/kostromin59/funpay
 
 ## Example usage
 
+### Account handling
 ```go
 func main() {
   goldenKey := "gk"
@@ -25,45 +26,56 @@ func main() {
 		return
 	}
 
-  log.Printf("account id: %d", fp.Account().ID())
-	log.Printf("username: %q", fp.Account().Username())
-	log.Printf("balance: %d", fp.Account().Balance())
-	log.Printf("locale: %q", fp.Account().Locale())
+ 	log.Printf("account id: %d", fp.UserID())
+	log.Printf("username: %q", fp.Username())
+	log.Printf("balance: %d", fp.Balance())
+	log.Printf("locale: %q", fp.Locale())
+}
+```
+
+### Lots
+```go
+func main() {
+  lots := funpay.NewLots(fp)
 
   // Load lots for current user
-  if err := fp.UpdateLots(context.Background()); err != nil {
-    log.Println(err.Error())
-    return
-  }
+	if err := lots.UpdateLots(context.Background()); err != nil {
+		log.Println(err.Error())
+		return
+	}
 
-  // Returns [nodeID]: []string{offerIDs...}
-  lots := fp.Lots().List()
-	log.Printf("count of nodes: %d", len(lots))
+	// Returns [nodeID]: []string{offerIDs...}
+	lotsList := lots.List()
+	log.Printf("count of nodes: %d", len(lotsList))
 
-  // Returns all fields with values to update lot (offer)
-  fields, err := fp.LotFields(context.Background(), "", "some_id")
+	// Returns all fields with values to update lot (offer)
+	fields, err := lots.LotFields(context.Background(), "", "some_id")
 	if err != nil {
 		log.Println(err.Error())
 		return
 	}
 
-  // Change field
-  fields["price"] = funpay.LotField{
+	// Change field
+	fields["price"] = funpay.LotField{
 		Value: "1500",
 	}
 
-  // Save lot (offer)
-  if err := fp.SaveLot(context.Background(), fields); err != nil {
+	// Save lot (offer)
+	if err := lots.SaveLot(context.Background(), fields); err != nil {
 		log.Println(err.Error())
 		return
 	}
 
-  // Returns all fields of lot by node (category) without values
-  fields, err := fp.LotFields(context.Background(), "some_id", "")
+	// Returns all fields of lot by node (category) without values
+  // 2852 - Accounts Call of Duty: Black Ops 6
+	fields, err = lots.LotFields(context.Background(), "2852", "")
 	if err != nil {
 		log.Println(err.Error())
 		return
 	}
+
+	offerID := fields["offer_id"]
+	log.Println(offerID.Value == "0") // true
 }
 ```
 
