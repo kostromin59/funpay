@@ -28,7 +28,7 @@ func TestFunpay_Request(t *testing.T) {
 		fp := funpay.New("test_key", "test_agent")
 		fp.SetBaseURL(ts.URL)
 
-		resp, err := fp.Request(context.Background(), ts.URL)
+		resp, err := fp.Request(t.Context(), ts.URL)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -48,7 +48,7 @@ func TestFunpay_Request(t *testing.T) {
 		fp := funpay.New("invalid_key", "test_agent")
 		fp.SetBaseURL(ts.URL)
 
-		_, err := fp.Request(context.Background(), ts.URL)
+		_, err := fp.Request(t.Context(), ts.URL)
 		if !errors.Is(err, funpay.ErrAccountUnauthorized) {
 			t.Errorf("expected ErrAccountUnauthorized, got %v", err)
 		}
@@ -63,7 +63,7 @@ func TestFunpay_Request(t *testing.T) {
 		fp := funpay.New("test_key", "test_agent")
 		fp.SetBaseURL(ts.URL)
 
-		_, err := fp.Request(context.Background(), ts.URL)
+		_, err := fp.Request(t.Context(), ts.URL)
 		if !errors.Is(err, funpay.ErrTooManyRequests) {
 			t.Errorf("expected ErrTooManyRequests, got %v", err)
 		}
@@ -78,7 +78,7 @@ func TestFunpay_Request(t *testing.T) {
 		fp := funpay.New("test_key", "test_agent")
 		fp.SetBaseURL(ts.URL)
 
-		_, err := fp.Request(context.Background(), ts.URL)
+		_, err := fp.Request(t.Context(), ts.URL)
 		if !errors.Is(err, funpay.ErrBadStatusCode) {
 			t.Errorf("expected ErrBadStatusCode, got %v", err)
 		}
@@ -96,7 +96,7 @@ func TestFunpay_Request(t *testing.T) {
 		fp.SetBaseURL("http://example.com")
 		fp.SetProxy(proxyURL)
 
-		resp, err := fp.Request(context.Background(), "http://example.com")
+		resp, err := fp.Request(t.Context(), "http://example.com")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -109,7 +109,7 @@ func TestFunpay_Request(t *testing.T) {
 
 	t.Run("invalid URL", func(t *testing.T) {
 		fp := funpay.New("test_key", "test_agent")
-		_, err := fp.Request(context.Background(), "://invalid.url")
+		_, err := fp.Request(t.Context(), "://invalid.url")
 		if err == nil {
 			t.Error("expected error for invalid URL, got nil")
 		}
@@ -124,7 +124,7 @@ func TestFunpay_Request(t *testing.T) {
 		fp := funpay.New("test_key", "test_agent")
 		fp.SetBaseURL(ts.URL)
 
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(t.Context())
 		cancel()
 
 		_, err := fp.Request(ctx, ts.URL)
@@ -150,7 +150,7 @@ func TestFunpay_Request(t *testing.T) {
 		fp := funpay.New("test_key", "test_agent")
 		fp.SetBaseURL(setupTS.URL)
 
-		if err := fp.Update(context.Background()); err != nil {
+		if err := fp.Update(t.Context()); err != nil {
 			t.Fatalf("Update failed: %v", err)
 		}
 
@@ -169,7 +169,7 @@ func TestFunpay_Request(t *testing.T) {
 
 		fp.SetBaseURL(testTS.URL)
 
-		resp, err := fp.Request(context.Background(), testTS.URL+"/path")
+		resp, err := fp.Request(t.Context(), testTS.URL+"/path")
 		if err != nil {
 			t.Fatalf("Request failed: %v", err)
 		}
@@ -190,7 +190,7 @@ func TestFunpay_Request(t *testing.T) {
 		fp := funpay.New("test_key", "test_agent")
 		fp.SetBaseURL(ts.URL)
 
-		_, err := fp.Request(context.Background(), ts.URL)
+		_, err := fp.Request(t.Context(), ts.URL)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -223,7 +223,7 @@ func TestFunpay_Request(t *testing.T) {
 		fp.SetBaseURL(ts.URL)
 
 		resp, err := fp.Request(
-			context.Background(),
+			t.Context(),
 			ts.URL,
 			funpay.RequestWithMethod(http.MethodPost),
 		)
@@ -251,7 +251,7 @@ func TestFunpay_Request(t *testing.T) {
 		fp.SetBaseURL(ts.URL)
 
 		resp, err := fp.Request(
-			context.Background(),
+			t.Context(),
 			ts.URL,
 			funpay.RequestWithHeaders(map[string]string{"X-Custom-Header": "test-value"}),
 		)
@@ -280,7 +280,7 @@ func TestFunpay_Request(t *testing.T) {
 		fp.SetBaseURL(ts.URL)
 
 		resp, err := fp.Request(
-			context.Background(),
+			t.Context(),
 			ts.URL,
 			funpay.RequestWithCookies([]*http.Cookie{{Name: "test_cookie", Value: "test_value"}}),
 		)
@@ -314,7 +314,7 @@ func TestFunpay_Request(t *testing.T) {
 		fp.SetBaseURL(ts.URL)
 
 		resp, err := fp.Request(
-			context.Background(),
+			t.Context(),
 			ts.URL,
 			funpay.RequestWithBody(strings.NewReader(testBody)),
 		)
@@ -346,7 +346,7 @@ func TestFunpay_Request(t *testing.T) {
 		fp.SetBaseURL(targetServer.URL)
 
 		resp, err := fp.Request(
-			context.Background(),
+			t.Context(),
 			targetServer.URL,
 			funpay.RequestWithProxy(proxyURL),
 		)
@@ -374,7 +374,7 @@ func TestFunpay_Request(t *testing.T) {
 		fp := funpay.New("test_key", userAgent)
 		fp.SetBaseURL(ts.URL)
 
-		resp, err := fp.Request(context.Background(), ts.URL)
+		resp, err := fp.Request(t.Context(), ts.URL)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -389,7 +389,7 @@ func TestFunpay_Request(t *testing.T) {
 		fp := funpay.New("test_key", "test_agent")
 
 		_, err := fp.Request(
-			context.Background(),
+			t.Context(),
 			"http://example.com",
 			funpay.RequestWithMethod("INVALID METHOD\n"),
 		)
@@ -418,7 +418,7 @@ func TestFunpay_RequestHTML(t *testing.T) {
 		fp := funpay.New("test_key", "test_agent")
 		fp.SetBaseURL(ts.URL)
 
-		doc, err := fp.RequestHTML(context.Background(), ts.URL)
+		doc, err := fp.RequestHTML(t.Context(), ts.URL)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -450,7 +450,7 @@ func TestFunpay_RequestHTML(t *testing.T) {
 		fp := funpay.New("test_key", "test_agent")
 		fp.SetBaseURL(ts.URL)
 
-		_, err := fp.RequestHTML(context.Background(), ts.URL)
+		_, err := fp.RequestHTML(t.Context(), ts.URL)
 		if !errors.Is(err, funpay.ErrAccountUnauthorized) {
 			t.Errorf("expected ErrAccountUnauthorized, got %v", err)
 		}
@@ -466,7 +466,7 @@ func TestFunpay_RequestHTML(t *testing.T) {
 		fp := funpay.New("test_key", "test_agent")
 		fp.SetBaseURL(ts.URL)
 
-		_, err := fp.RequestHTML(context.Background(), ts.URL)
+		_, err := fp.RequestHTML(t.Context(), ts.URL)
 		if err == nil {
 			t.Error("expected error, got nil")
 		}
@@ -482,7 +482,7 @@ func TestFunpay_RequestHTML(t *testing.T) {
 		fp := funpay.New("test_key", "test_agent")
 		fp.SetBaseURL(ts.URL)
 
-		_, err := fp.RequestHTML(context.Background(), ts.URL)
+		_, err := fp.RequestHTML(t.Context(), ts.URL)
 		if !errors.Is(err, funpay.ErrAccountUnauthorized) {
 			t.Errorf("expected ErrAccountUnauthorized, got %v", err)
 		}
@@ -504,7 +504,7 @@ func TestFunpay_RequestHTML(t *testing.T) {
 		fp := funpay.New("test_key", "test_agent")
 		fp.SetBaseURL(ts.URL)
 
-		_, err := fp.RequestHTML(context.Background(), ts.URL)
+		_, err := fp.RequestHTML(t.Context(), ts.URL)
 		if err == nil {
 			t.Error("expected error, got nil")
 		}
@@ -527,7 +527,7 @@ func TestFunpay_RequestHTML(t *testing.T) {
 		fp := funpay.New("test_key", "test_agent")
 		fp.SetBaseURL(ts.URL)
 
-		_, err := fp.RequestHTML(context.Background(), ts.URL)
+		_, err := fp.RequestHTML(t.Context(), ts.URL)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -586,13 +586,13 @@ func TestFunpay_UpdateLocale(t *testing.T) {
 		defer setupTS.Close()
 
 		fp.SetBaseURL(setupTS.URL)
-		if err := fp.Update(context.Background()); err != nil {
+		if err := fp.Update(t.Context()); err != nil {
 			t.Fatalf("setup failed: %v", err)
 		}
 
 		fp.SetBaseURL(ts.URL)
 
-		err := fp.UpdateLocale(context.Background(), funpay.LocaleEN)
+		err := fp.UpdateLocale(t.Context(), funpay.LocaleEN)
 		if err != nil {
 			t.Fatalf("UpdateLocale failed: %v", err)
 		}
@@ -606,7 +606,7 @@ func TestFunpay_UpdateLocale(t *testing.T) {
 		fp := funpay.New("test_key", "test_agent")
 		fp.SetBaseURL("http://invalid.url:12345")
 
-		err := fp.UpdateLocale(context.Background(), funpay.LocaleEN)
+		err := fp.UpdateLocale(t.Context(), funpay.LocaleEN)
 		if err == nil {
 			t.Fatal("expected error for invalid URL, got nil")
 		}
@@ -621,7 +621,7 @@ func TestFunpay_UpdateLocale(t *testing.T) {
 		fp := funpay.New("invalid_key", "test_agent")
 		fp.SetBaseURL(ts.URL)
 
-		err := fp.UpdateLocale(context.Background(), funpay.LocaleEN)
+		err := fp.UpdateLocale(t.Context(), funpay.LocaleEN)
 		if !errors.Is(err, funpay.ErrAccountUnauthorized) {
 			t.Fatalf("expected ErrAccountUnauthorized, got %v", err)
 		}
@@ -637,7 +637,7 @@ func TestFunpay_UpdateLocale(t *testing.T) {
 		fp := funpay.New("test_key", "test_agent")
 		fp.SetBaseURL(ts.URL)
 
-		err := fp.UpdateLocale(context.Background(), funpay.LocaleEN)
+		err := fp.UpdateLocale(t.Context(), funpay.LocaleEN)
 		if !errors.Is(err, funpay.ErrAccountUnauthorized) {
 			t.Fatalf("expected ErrAccountUnauthorized, got %v", err)
 		}
