@@ -3,7 +3,7 @@
 Go library for [Funpay](https://funpay.com/).
 
 > [!important]
-> This library is currently developing!
+> This library is currently developing! But may used to handle user and lots.
 
 ## Installation
 
