@@ -1,12 +1,14 @@
 package funpay
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/PuerkitoBio/goquery"
@@ -20,34 +22,84 @@ const (
 	BaseURL = "https://" + Domain
 )
 
-type Funpay struct {
-	account *account
-	lots    *lots
+var (
+	// ErrAccountUnauthorized indicates authentication failure (HTTP 403 Forbidden).
+	// Returned when golden key or session cookies are invalid/expired.
+	ErrAccountUnauthorized = errors.New("account unauthorized")
+)
 
+type Funpay struct {
+	goldenKey string
+	userAgent string
 	csrfToken string
-	baseURL   string
-	cookies   []*http.Cookie
-	proxy     *url.URL
-	mu        sync.RWMutex
+
+	userID   int64
+	username string
+	balance  int64
+	locale   Locale
+
+	baseURL string
+	cookies []*http.Cookie
+	proxy   *url.URL
+	mu      sync.RWMutex
 }
 
 // New creates a new instanse of [Funpay].
 func New(goldenKey, userAgent string) *Funpay {
 	return &Funpay{
-		account: newAccount(goldenKey, userAgent),
-		lots:    newLots(),
-		baseURL: BaseURL,
+		goldenKey: goldenKey,
+		userAgent: userAgent,
+		baseURL:   BaseURL,
 	}
 }
 
-// Account returns account info: id, username, balance, locale. [Funpay.RequestHTML] updates account info.
-func (fp *Funpay) Account() *account {
-	return fp.account
+// UserID returns the unique identifier of the Funpay account.
+// Returns 0 if the account hasn't been updated yet.
+func (fp *Funpay) UserID() int64 {
+	fp.mu.RLock()
+	userID := fp.userID
+	fp.mu.RUnlock()
+	return userID
 }
 
-// Lots returns lots info. [Funpay.UpdateLots] updates lots info.
-func (fp *Funpay) Lots() *lots {
-	return fp.lots
+// GoldenKey returns the account's authentication token provided into funpay (see [New]).
+func (fp *Funpay) GoldenKey() string {
+	fp.mu.RLock()
+	gk := fp.goldenKey
+	fp.mu.RUnlock()
+	return gk
+}
+
+// UserAgent returns the account's user agent provided into funpay (see [New]).
+func (fp *Funpay) UserAgent() string {
+	fp.mu.RLock()
+	ua := fp.userAgent
+	fp.mu.RUnlock()
+	return ua
+}
+
+// Locale returns the account's locale (see [Locale]). Must be loaded after update.
+func (fp *Funpay) Locale() Locale {
+	fp.mu.RLock()
+	locale := fp.locale
+	fp.mu.RUnlock()
+	return locale
+}
+
+// Username returns the account's username. Must be loaded after update.
+func (fp *Funpay) Username() string {
+	fp.mu.RLock()
+	username := fp.username
+	fp.mu.RUnlock()
+	return username
+}
+
+// Username returns the account's username. Must be loaded after update.
+func (fp *Funpay) Balance() int64 {
+	fp.mu.RLock()
+	balance := fp.balance
+	fp.mu.RUnlock()
+	return balance
 }
 
 // CSRFToken returns CSRF token extracted from [AppData]. CSRF token updates every call [Funpay.RequestHTML].
@@ -67,9 +119,19 @@ func (fp *Funpay) Cookies() []*http.Cookie {
 	return c
 }
 
-// SetBaseURL updates baseURL. It is not concurrency safe. Needed for tests.
+// BaseURL returns baseURL. Needed for tests to substitute the [BaseURL] with test server.
+func (fp *Funpay) BaseURL() string {
+	fp.mu.RLock()
+	baseURL := fp.baseURL
+	fp.mu.RUnlock()
+	return baseURL
+}
+
+// SetBaseURL updates baseURL. Needed for tests to substitute the [BaseURL] with test server.
 func (fp *Funpay) SetBaseURL(baseURL string) {
+	fp.mu.Lock()
 	fp.baseURL = baseURL
+	fp.mu.Unlock()
 }
 
 // SetProxy sets or updates the HTTP proxy for the requests.
@@ -107,112 +169,6 @@ func (fp *Funpay) UpdateLocale(ctx context.Context, locale Locale) error {
 	reqURL.RawQuery = q.Encode()
 
 	if _, err := fp.RequestHTML(ctx, reqURL.String()); err != nil {
-		return fmt.Errorf("%s: %w", op, err)
-	}
-
-	return nil
-}
-
-// UpdateLots updates lots for current account. Use Funpay.Lots().List() to get lots.
-// Returns [ErrAccountUnauthorized] if user id equals 0. Call [Funpay.Update] to update account info.
-func (fp *Funpay) UpdateLots(ctx context.Context) error {
-	const op = "Funpay.UpdateLots"
-
-	id := fp.Account().ID()
-	if id == 0 {
-		return fmt.Errorf("%s: %w", op, ErrAccountUnauthorized)
-	}
-
-	lots, err := fp.LotsByUser(context.Background(), id)
-	if err != nil {
-		return fmt.Errorf("%s: %w", op, err)
-	}
-
-	fp.Lots().updateList(lots)
-
-	return nil
-}
-
-// LotsByUser loads lots for provided userID.
-func (fp *Funpay) LotsByUser(ctx context.Context, userID int64) (map[string][]string, error) {
-	const op = "Funpay.LotsByUser"
-
-	reqURL, err := url.Parse(fp.baseURL)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", op, err)
-	}
-
-	reqURL = reqURL.JoinPath("users", fmt.Sprintf("%d", userID), "/")
-
-	doc, err := fp.RequestHTML(ctx, reqURL.String())
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", op, err)
-	}
-
-	lots, err := fp.lots.extractLots(doc)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", op, err)
-	}
-
-	return lots, nil
-}
-
-// LotFields loads [LotFields] for nodeID (category) or offerID. Values will be filled with provided offerID.
-func (fp *Funpay) LotFields(ctx context.Context, nodeID, offerID string) (LotFields, error) {
-	const op = "Funpay.LotFields"
-
-	reqURL, err := url.Parse(fp.baseURL)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", op, err)
-	}
-
-	reqURL = reqURL.JoinPath("lots", "offerEdit")
-
-	q := reqURL.Query()
-	if offerID != "" {
-		q.Set("offer", offerID)
-	}
-	if nodeID != "" {
-		q.Set("node", nodeID)
-	}
-	reqURL.RawQuery = q.Encode()
-
-	doc, err := fp.RequestHTML(ctx, reqURL.String())
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", op, err)
-	}
-
-	return fp.lots.extractFields(doc), nil
-}
-
-// SaveLot makes request to /lots/offerSave. Use [Funpay.LotFields] to get fields.
-//
-//	Fields:
-//	- Provide offer_id to update lot;
-//	- Set offer_id = "0" to create lot;
-//	- Set deleted = "1" to delete lot.
-func (fp *Funpay) SaveLot(ctx context.Context, fields LotFields) error {
-	const op = "Funpay.SaveLot"
-
-	body := url.Values{}
-
-	for name, v := range fields {
-		body.Set(name, v.Value)
-	}
-
-	body.Set(FormCSRFToken, fp.CSRFToken())
-	body.Set("location", "trade")
-
-	_, err := fp.Request(ctx, fp.baseURL+"/lots/offerSave",
-		RequestWithMethod(http.MethodPost),
-		RequestWithBody(bytes.NewBufferString(body.Encode())),
-		RequestWithHeaders(map[string]string{
-			"content-type":     "application/x-www-form-urlencoded; charset=UTF-8",
-			"accept":           "*/*",
-			"x-requested-with": "XMLHttpRequest",
-		}),
-	)
-	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)
 	}
 
@@ -259,7 +215,7 @@ func (fp *Funpay) Request(ctx context.Context, requestURL string, opts ...reques
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 
-	locale := fp.Account().Locale()
+	locale := fp.Locale()
 	if locale != LocaleRU && reqOpts.method == http.MethodGet {
 		path := reqURL.Path
 		if path == "" {
@@ -281,7 +237,7 @@ func (fp *Funpay) Request(ctx context.Context, requestURL string, opts ...reques
 
 	goldenKeyCookie := &http.Cookie{
 		Name:     CookieGoldenKey,
-		Value:    fp.Account().GoldenKey(),
+		Value:    fp.GoldenKey(),
 		Domain:   "." + Domain,
 		Path:     "/",
 		HttpOnly: true,
@@ -294,7 +250,7 @@ func (fp *Funpay) Request(ctx context.Context, requestURL string, opts ...reques
 		req.AddCookie(c)
 	}
 
-	req.Header.Set(HeaderUserAgent, fp.Account().UserAgent())
+	req.Header.Set(HeaderUserAgent, fp.UserAgent())
 	for name, value := range reqOpts.headers {
 		req.Header.Add(name, value)
 	}
@@ -329,7 +285,7 @@ func (fp *Funpay) Request(ctx context.Context, requestURL string, opts ...reques
 // RequestHTML calls [Funpay.Request] and converting response as [*goquery.Document].
 // Updates [AppData] and account info (see [Funpay.Account]).
 //
-// Returns nil and [ErrAccountUnauthorized] if [account.ID] is zero.
+// Returns nil and [ErrAccountUnauthorized] if [Funpay.UserID] is zero.
 func (fp *Funpay) RequestHTML(ctx context.Context, requestURL string, opts ...requestOpt) (*goquery.Document, error) {
 	const op = "Funpay.RequestHTML"
 
@@ -348,15 +304,39 @@ func (fp *Funpay) RequestHTML(ctx context.Context, requestURL string, opts ...re
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 
-	if err := fp.Account().update(doc); err != nil {
+	if err := fp.updateUserData(doc); err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 
-	if fp.Account().ID() == 0 {
+	if fp.UserID() == 0 {
 		return nil, fmt.Errorf("%s: %w", op, ErrAccountUnauthorized)
 	}
 
 	return doc, nil
+}
+
+func (fp *Funpay) updateUserData(doc *goquery.Document) error {
+	const op = "Funpay.updateUserData"
+	username := strings.TrimSpace(doc.Find(".user-link-name").First().Text())
+	rawBalance := doc.Find(".badge-balance").First().Text()
+	balanceStr := onlyDigitsRe.ReplaceAllString(rawBalance, "")
+	balanceStr = strings.TrimSpace(balanceStr)
+	var balance int64
+	if balanceStr != "" {
+		parsedBalance, err := strconv.ParseInt(balanceStr, 0, 64)
+		if err != nil {
+			return fmt.Errorf("%s: %w", op, err)
+		}
+
+		balance = parsedBalance
+	}
+
+	fp.mu.Lock()
+	defer fp.mu.Unlock()
+	fp.username = username
+	fp.balance = balance
+
+	return nil
 }
 
 func (fp *Funpay) updateAppData(doc *goquery.Document) error {
@@ -372,10 +352,9 @@ func (fp *Funpay) updateAppData(doc *goquery.Document) error {
 		return fmt.Errorf("%s: %w", op, err)
 	}
 
-	fp.account.setID(appData.UserID)
-	fp.Account().setLocale(appData.Locale)
-
 	fp.mu.Lock()
+	fp.userID = appData.UserID
+	fp.locale = appData.Locale
 	fp.csrfToken = appData.CSRFToken
 	fp.mu.Unlock()
 
