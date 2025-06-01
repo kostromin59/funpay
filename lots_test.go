@@ -16,7 +16,6 @@ import (
 func TestLots_SaveLot(t *testing.T) {
 	t.Run("successful request", func(t *testing.T) {
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Проверяем только базовые требования
 			if r.Method != http.MethodPost {
 				t.Error("expected POST request")
 			}
