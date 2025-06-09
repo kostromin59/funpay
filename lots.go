@@ -104,7 +104,7 @@ func (l *Lots) extractFields(doc *goquery.Document) LotFields {
 		switch s.AttrOr("type", "") {
 		case "checkbox":
 			field := LotField{
-				Variants: []string{"on", ""},
+				Variants: []string{"on"},
 			}
 			_, ok := s.Attr("checked")
 			if ok {
@@ -152,13 +152,19 @@ func (l *Lots) extractFields(doc *goquery.Document) LotFields {
 			if !ok {
 				return
 			}
+
+			if value == "" {
+				return
+			}
+
 			variants = append(variants, value)
-			field.Variants = variants
 
 			if _, ok := s.Attr("selected"); ok {
 				field.Value = value
 			}
 		})
+
+		field.Variants = variants
 
 		fields[name] = field
 	})
