@@ -36,9 +36,9 @@ const (
 	FormCSRFToken = "csrf_token"
 )
 
-// requestOpts contains configurable parameters for HTTP requests.
+// RequestOpts contains configurable parameters for HTTP requests.
 // Used internally by [Funpay.Request] to customize request behavior.
-type requestOpts struct {
+type RequestOpts struct {
 	method  string
 	body    io.Reader
 	cookies []*http.Cookie
@@ -46,52 +46,52 @@ type requestOpts struct {
 	proxy   *url.URL
 }
 
-// newRequestOpts creates request options with defaults:
+// NewRequestOpts creates request options with defaults:
 //   - Method: GET
-func newRequestOpts() *requestOpts {
-	return &requestOpts{
+func NewRequestOpts() *RequestOpts {
+	return &RequestOpts{
 		method: http.MethodGet,
 	}
 }
 
-// requestOpt defines a function type for modifying request options.
-type requestOpt func(options *requestOpts)
+// RequestOpt defines a function type for modifying request options.
+type RequestOpt func(options *RequestOpts)
 
 // RequestWithMethod sets the HTTP method for the request.
 // Default: GET
-func RequestWithMethod(method string) requestOpt {
-	return func(options *requestOpts) {
+func RequestWithMethod(method string) RequestOpt {
+	return func(options *RequestOpts) {
 		options.method = method
 	}
 }
 
 // RequestWithBody sets the request body.
-func RequestWithBody(body io.Reader) requestOpt {
-	return func(options *requestOpts) {
+func RequestWithBody(body io.Reader) RequestOpt {
+	return func(options *RequestOpts) {
 		options.body = body
 	}
 }
 
 // RequestWithCookies adds additional cookies to the request.
 // Note: Session cookies are added automatically.
-func RequestWithCookies(cookies []*http.Cookie) requestOpt {
-	return func(options *requestOpts) {
+func RequestWithCookies(cookies []*http.Cookie) RequestOpt {
+	return func(options *RequestOpts) {
 		options.cookies = cookies
 	}
 }
 
 // RequestWithHeaders adds custom headers to the request.
 // Headers are added in addition to default User-Agent.
-func RequestWithHeaders(headers map[string]string) requestOpt {
-	return func(options *requestOpts) {
+func RequestWithHeaders(headers map[string]string) RequestOpt {
+	return func(options *RequestOpts) {
 		options.headers = headers
 	}
 }
 
 // RequestWithProxy overrides the account-level proxy for this request.
 // To disable proxy for single request: RequestWithProxy(nil)
-func RequestWithProxy(proxy *url.URL) requestOpt {
-	return func(options *requestOpts) {
+func RequestWithProxy(proxy *url.URL) RequestOpt {
+	return func(options *RequestOpts) {
 		options.proxy = proxy
 	}
 }

@@ -22,13 +22,13 @@ type LotField struct {
 }
 
 type Lots struct {
-	fp *Funpay
+	fp Funpay
 
 	list map[string][]string
 	mu   sync.RWMutex
 }
 
-func NewLots(fp *Funpay) *Lots {
+func NewLots(fp Funpay) *Lots {
 	return &Lots{
 		fp: fp,
 	}

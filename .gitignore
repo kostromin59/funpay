@@ -21,8 +21,11 @@
 go.work
 go.work.sum
 
-# env file
+# Env file
 .env
+
+# MacOS
+.DS_Store
 
 cmd/
 *.json
