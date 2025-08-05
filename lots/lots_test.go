@@ -1,4 +1,4 @@
-package funpay_test
+package lots_test
 
 import (
 	"errors"
@@ -10,8 +10,10 @@ import (
 	"testing"
 
 	"github.com/kostromin59/funpay"
+	"github.com/kostromin59/funpay/lots"
 )
 
+// TODO: generate funpay mock
 func TestLots_SaveLot(t *testing.T) {
 	t.Run("successful request", func(t *testing.T) {
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -24,10 +26,10 @@ func TestLots_SaveLot(t *testing.T) {
 
 		fp := funpay.New("test_key", "test_agent")
 		fp.SetBaseURL(ts.URL)
-		lots := funpay.NewLots(fp)
+		fpLots := lots.New(fp)
 
-		err := lots.SaveLot(t.Context(), funpay.LotFields{
-			"offer_id": {Value: "123"},
+		err := fpLots.Save(t.Context(), lots.LotFields{
+			"offer_id": lots.LotField{Value: "123"},
 		})
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -36,9 +38,9 @@ func TestLots_SaveLot(t *testing.T) {
 
 	t.Run("missing offer_id", func(t *testing.T) {
 		fp := funpay.New("test_key", "test_agent")
-		lots := funpay.NewLots(fp)
+		fpLots := lots.New(fp)
 
-		err := lots.SaveLot(t.Context(), funpay.LotFields{})
+		err := fpLots.Save(t.Context(), lots.LotFields{})
 		if err == nil {
 			t.Error("expected error when offer_id is missing")
 		}
@@ -47,10 +49,10 @@ func TestLots_SaveLot(t *testing.T) {
 	t.Run("request error handling", func(t *testing.T) {
 		fp := funpay.New("test_key", "test_agent")
 		fp.SetBaseURL("http://unreachable-url")
-		lots := funpay.NewLots(fp)
+		fpLots := lots.New(fp)
 
-		err := lots.SaveLot(t.Context(), funpay.LotFields{
-			"offer_id": {Value: "123"},
+		err := fpLots.Save(t.Context(), lots.LotFields{
+			"offer_id": lots.LotField{Value: "123"},
 		})
 		if err == nil {
 			t.Error("expected error when request fails")
@@ -86,18 +88,18 @@ func TestLots_LotFields(t *testing.T) {
 
 		fp := funpay.New("test_key", "test_agent")
 		fp.SetBaseURL(ts.URL)
-		lots := funpay.NewLots(fp)
+		fpLots := lots.New(fp)
 
-		fields, err := lots.LotFields(t.Context(), "", "123")
+		fields, err := fpLots.Fields(t.Context(), "", "123")
 		if err != nil {
 			t.Fatalf("LotFields failed: %v", err)
 		}
 
-		expected := funpay.LotFields{
-			"title":       {Value: "Test Title"},
-			"active":      {Value: "on", Variants: []string{"on", ""}},
-			"description": {Value: "Test Description"},
-			"category":    {Value: "2", Variants: []string{"1", "2"}},
+		expected := lots.LotFields{
+			"title":       lots.LotField{Value: "Test Title"},
+			"active":      lots.LotField{Value: "on", Variants: []string{"on", ""}},
+			"description": lots.LotField{Value: "Test Description"},
+			"category":    lots.LotField{Value: "2", Variants: []string{"1", "2"}},
 		}
 
 		if !reflect.DeepEqual(fields, expected) {
@@ -126,15 +128,15 @@ func TestLots_LotFields(t *testing.T) {
 
 		fp := funpay.New("test_key", "test_agent")
 		fp.SetBaseURL(ts.URL)
-		lots := funpay.NewLots(fp)
+		fpLots := lots.New(fp)
 
-		fields, err := lots.LotFields(t.Context(), "456", "")
+		fields, err := fpLots.Fields(t.Context(), "456", "")
 		if err != nil {
 			t.Fatalf("LotFields failed: %v", err)
 		}
 
-		expected := funpay.LotFields{
-			"title": {Value: "New Lot"},
+		expected := lots.LotFields{
+			"title": lots.LotField{Value: "New Lot"},
 		}
 
 		if !reflect.DeepEqual(fields, expected) {
@@ -145,9 +147,9 @@ func TestLots_LotFields(t *testing.T) {
 	t.Run("invalid base URL", func(t *testing.T) {
 		fp := funpay.New("test_key", "test_agent")
 		fp.SetBaseURL("http://invalid.url:12345")
-		lots := funpay.NewLots(fp)
+		fpLots := lots.New(fp)
 
-		_, err := lots.LotFields(t.Context(), "456", "")
+		_, err := fpLots.Fields(t.Context(), "456", "")
 		if err == nil {
 			t.Fatal("expected error for invalid URL, got nil")
 		}
@@ -161,9 +163,9 @@ func TestLots_LotFields(t *testing.T) {
 
 		fp := funpay.New("invalid_key", "test_agent")
 		fp.SetBaseURL(ts.URL)
-		lots := funpay.NewLots(fp)
+		fpLots := lots.New(fp)
 
-		_, err := lots.LotFields(t.Context(), "456", "")
+		_, err := fpLots.Fields(t.Context(), "456", "")
 		if !errors.Is(err, funpay.ErrAccountUnauthorized) {
 			t.Fatalf("expected ErrAccountUnauthorized, got %v", err)
 		}
@@ -184,9 +186,9 @@ func TestLots_LotFields(t *testing.T) {
 
 		fp := funpay.New("test_key", "test_agent")
 		fp.SetBaseURL(ts.URL)
-		lots := funpay.NewLots(fp)
+		fpLots := lots.New(fp)
 
-		fields, err := lots.LotFields(t.Context(), "456", "")
+		fields, err := fpLots.Fields(t.Context(), "456", "")
 		if err != nil {
 			t.Fatalf("LotFields failed: %v", err)
 		}
@@ -214,9 +216,9 @@ func TestLots_LotFields(t *testing.T) {
 
 		fp := funpay.New("test_key", "test_agent")
 		fp.SetBaseURL(ts.URL)
-		lots := funpay.NewLots(fp)
+		fpLots := lots.New(fp)
 
-		fields, err := lots.LotFields(t.Context(), "456", "")
+		fields, err := fpLots.Fields(t.Context(), "456", "")
 		if err != nil {
 			t.Fatalf("LotFields failed: %v", err)
 		}
@@ -255,9 +257,9 @@ func TestLots_LotsByUser(t *testing.T) {
 
 		fp := funpay.New("test_key", "test_agent")
 		fp.SetBaseURL(ts.URL)
-		lots := funpay.NewLots(fp)
+		fpLots := lots.New(fp)
 
-		userLots, err := lots.LotsByUser(t.Context(), 123)
+		userLots, err := fpLots.ByUser(t.Context(), 123)
 		if err != nil {
 			t.Fatalf("LotsByUser failed: %v", err)
 		}
@@ -275,9 +277,9 @@ func TestLots_LotsByUser(t *testing.T) {
 	t.Run("invalid user URL", func(t *testing.T) {
 		fp := funpay.New("test_key", "test_agent")
 		fp.SetBaseURL("http://invalid.url:12345")
-		lots := funpay.NewLots(fp)
+		fpLots := lots.New(fp)
 
-		_, err := lots.LotsByUser(t.Context(), 123)
+		_, err := fpLots.ByUser(t.Context(), 123)
 		if err == nil {
 			t.Fatal("expected error for invalid URL, got nil")
 		}
@@ -291,9 +293,9 @@ func TestLots_LotsByUser(t *testing.T) {
 
 		fp := funpay.New("invalid_key", "test_agent")
 		fp.SetBaseURL(ts.URL)
-		lots := funpay.NewLots(fp)
+		fpLots := lots.New(fp)
 
-		_, err := lots.LotsByUser(t.Context(), 123)
+		_, err := fpLots.ByUser(t.Context(), 123)
 		if !errors.Is(err, funpay.ErrAccountUnauthorized) {
 			t.Fatalf("expected ErrAccountUnauthorized, got %v", err)
 		}
@@ -310,9 +312,9 @@ func TestLots_LotsByUser(t *testing.T) {
 
 		fp := funpay.New("test_key", "test_agent")
 		fp.SetBaseURL(ts.URL)
-		lots := funpay.NewLots(fp)
+		fpLots := lots.New(fp)
 
-		userLots, err := lots.LotsByUser(t.Context(), 123)
+		userLots, err := fpLots.ByUser(t.Context(), 123)
 		if err != nil {
 			t.Fatalf("LotsByUser failed: %v", err)
 		}
@@ -339,9 +341,9 @@ func TestLots_LotsByUser(t *testing.T) {
 
 		fp := funpay.New("test_key", "test_agent")
 		fp.SetBaseURL(ts.URL)
-		lots := funpay.NewLots(fp)
+		fpLots := lots.New(fp)
 
-		_, err := lots.LotsByUser(t.Context(), 123)
+		_, err := fpLots.ByUser(t.Context(), 123)
 		if err == nil {
 			t.Fatal("expected error for malformed URL, got nil")
 		}
@@ -365,7 +367,7 @@ func TestLots_UpdateLots(t *testing.T) {
 
 		fp := funpay.New("test_key", "test_agent")
 		fp.SetBaseURL(accountTS.URL)
-		lots := funpay.NewLots(fp)
+		fpLots := lots.New(fp)
 
 		if err := fp.Update(t.Context()); err != nil {
 			t.Fatalf("Update failed: %v", err)
@@ -390,21 +392,21 @@ func TestLots_UpdateLots(t *testing.T) {
 		defer lotsTS.Close()
 
 		fp.SetBaseURL(lotsTS.URL)
-		err := lots.UpdateLots(t.Context())
+		err := fpLots.Update(t.Context())
 		if err != nil {
 			t.Fatalf("UpdateLots failed: %v", err)
 		}
 
-		if len(lots.List()) == 0 {
+		if len(fpLots.List()) == 0 {
 			t.Error("expected lots to be updated")
 		}
 	})
 
 	t.Run("unauthorized user", func(t *testing.T) {
 		fp := funpay.New("test_key", "test_agent")
-		lots := funpay.NewLots(fp)
+		fpLots := lots.New(fp)
 
-		err := lots.UpdateLots(t.Context())
+		err := fpLots.Update(t.Context())
 		if !errors.Is(err, funpay.ErrAccountUnauthorized) {
 			t.Fatalf("expected ErrAccountUnauthorized, got %v", err)
 		}

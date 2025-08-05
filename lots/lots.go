@@ -1,4 +1,4 @@
-package funpay
+package lots
 
 import (
 	"bytes"
@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/kostromin59/funpay"
 )
 
 // LotFields represents type contains fields from edit lot page.
@@ -22,25 +23,26 @@ type LotField struct {
 }
 
 type Lots struct {
-	fp Funpay
+	fp funpay.Funpay
 
 	list map[string][]string
 	mu   sync.RWMutex
 }
 
-func NewLots(fp Funpay) *Lots {
+// TODO: return interface
+func New(fp funpay.Funpay) *Lots {
 	return &Lots{
 		fp: fp,
 	}
 }
 
-// SaveLot makes request to /lots/offerSave. Use [Lots.LotFields] to get fields.
+// Save makes request to /lots/offerSave. Use [Lots.Fields] to get fields.
 //
 //	Fields:
 //	- Provide offer_id to update lot;
 //	- Set offer_id = "0" to create lot;
 //	- Set deleted = "1" to delete lot.
-func (l *Lots) SaveLot(ctx context.Context, fields LotFields) error {
+func (l *Lots) Save(ctx context.Context, fields LotFields) error {
 	const op = "Lots.SaveLot"
 
 	body := url.Values{}
@@ -49,13 +51,13 @@ func (l *Lots) SaveLot(ctx context.Context, fields LotFields) error {
 		body.Set(name, v.Value)
 	}
 
-	body.Set(FormCSRFToken, l.fp.CSRFToken())
+	body.Set(funpay.FormCSRFToken, l.fp.CSRFToken())
 	body.Set("location", "trade")
 
 	_, err := l.fp.Request(ctx, l.fp.BaseURL()+"/lots/offerSave",
-		RequestWithMethod(http.MethodPost),
-		RequestWithBody(bytes.NewBufferString(body.Encode())),
-		RequestWithHeaders(RequestPostHeaders),
+		funpay.RequestWithMethod(http.MethodPost),
+		funpay.RequestWithBody(bytes.NewBufferString(body.Encode())),
+		funpay.RequestWithHeaders(funpay.RequestPostHeaders),
 	)
 	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)
@@ -64,8 +66,8 @@ func (l *Lots) SaveLot(ctx context.Context, fields LotFields) error {
 	return nil
 }
 
-// LotFields loads [LotFields] for nodeID (category) or offerID. Values will be filled with provided offerID.
-func (l *Lots) LotFields(ctx context.Context, nodeID, offerID string) (LotFields, error) {
+// Fields loads [Fields] for nodeID (category) or offerID. Values will be filled with provided offerID.
+func (l *Lots) Fields(ctx context.Context, nodeID, offerID string) (LotFields, error) {
 	const op = "Lots.LotFields"
 
 	reqURL, err := url.Parse(l.fp.BaseURL())
@@ -114,7 +116,7 @@ func (l *Lots) extractFields(doc *goquery.Document) LotFields {
 			fields[name] = field
 
 		default:
-			if name == FormCSRFToken {
+			if name == funpay.FormCSRFToken {
 				return
 			}
 
@@ -172,8 +174,8 @@ func (l *Lots) extractFields(doc *goquery.Document) LotFields {
 	return fields
 }
 
-// LotsByUser gets lots for provided userID. Key represents nodeID, value represents slice of offerIDs.
-func (l *Lots) LotsByUser(ctx context.Context, userID int64) (map[string][]string, error) {
+// ByUser gets lots for provided userID. Key represents nodeID, value represents slice of offerIDs.
+func (l *Lots) ByUser(ctx context.Context, userID int64) (map[string][]string, error) {
 	const op = "Lots.LotsByUser"
 
 	reqURL, err := url.Parse(l.fp.BaseURL())
@@ -243,17 +245,17 @@ func (l *Lots) extractLots(doc *goquery.Document) (map[string][]string, error) {
 	return lots, nil
 }
 
-// UpdateLots updates lots for current account. Use [Lots.List] to get loaded lots.
+// Update updates lots for current account. Use [Lots.List] to get loaded lots.
 // Returns [ErrAccountUnauthorized] if user id equals 0. Call [Funpay.Update] to update account info.
-func (l *Lots) UpdateLots(ctx context.Context) error {
+func (l *Lots) Update(ctx context.Context) error {
 	const op = "Funpay.UpdateLots"
 
 	id := l.fp.UserID()
 	if id == 0 {
-		return fmt.Errorf("%s: %w", op, ErrAccountUnauthorized)
+		return fmt.Errorf("%s: %w", op, funpay.ErrAccountUnauthorized)
 	}
 
-	lots, err := l.LotsByUser(ctx, id)
+	lots, err := l.ByUser(ctx, id)
 	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)
 	}
