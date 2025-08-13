@@ -25,8 +25,8 @@ func TestLots_Save(t *testing.T) {
 		fp := mocks.NewMockFunpay(ctrl)
 		fpLots := lots.New(fp)
 
-		saveLotFields := lots.LotFields{
-			"offer_id": lots.LotField{Value: "123"},
+		saveLotFields := lots.Fields{
+			"offer_id": lots.Field{Value: "123"},
 		}
 
 		expectedBody := url.Values{}
@@ -67,8 +67,8 @@ func TestLots_Save(t *testing.T) {
 			gomock.Any(),
 		).Times(1).Return(nil, errors.New("request error"))
 
-		err := fpLots.Save(t.Context(), lots.LotFields{
-			"offer_id": lots.LotField{Value: "123"},
+		err := fpLots.Save(t.Context(), lots.Fields{
+			"offer_id": lots.Field{Value: "123"},
 		})
 		if err == nil {
 			t.Error("expected error when request fails")
@@ -114,11 +114,11 @@ func TestLots_Fields(t *testing.T) {
 			t.Fatalf("LotFields failed: %v", err)
 		}
 
-		expected := lots.LotFields{
-			"title":       lots.LotField{Value: "Test Title"},
-			"active":      lots.LotField{Value: "on", Variants: []string{"on"}},
-			"description": lots.LotField{Value: "Test Description"},
-			"category":    lots.LotField{Value: "2", Variants: []string{"1", "2"}},
+		expected := lots.Fields{
+			"title":       lots.Field{Value: "Test Title"},
+			"active":      lots.Field{Value: "on", Variants: []string{"on"}},
+			"description": lots.Field{Value: "Test Description"},
+			"category":    lots.Field{Value: "2", Variants: []string{"1", "2"}},
 		}
 
 		if !reflect.DeepEqual(fields, expected) {
@@ -157,8 +157,8 @@ func TestLots_Fields(t *testing.T) {
 			t.Fatalf("LotFields failed: %v", err)
 		}
 
-		expected := lots.LotFields{
-			"title": lots.LotField{Value: "New Lot"},
+		expected := lots.Fields{
+			"title": lots.Field{Value: "New Lot"},
 		}
 
 		if !reflect.DeepEqual(fields, expected) {
