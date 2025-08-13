@@ -5,32 +5,45 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/kostromin59/funpay"
 	"github.com/kostromin59/funpay/lots"
+	"github.com/kostromin59/funpay/mocks"
+	"go.uber.org/mock/gomock"
 )
 
-// TODO: generate funpay mock
 func TestLots_SaveLot(t *testing.T) {
 	t.Run("successful request", func(t *testing.T) {
-		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.Method != http.MethodPost {
-				t.Error("expected POST request")
-			}
-			w.WriteHeader(http.StatusOK)
-		}))
-		defer ts.Close()
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
 
-		fp := funpay.New("test_key", "test_agent")
-		fp.SetBaseURL(ts.URL)
+		fp := mocks.NewMockFunpay(ctrl)
 		fpLots := lots.New(fp)
 
-		err := fpLots.Save(t.Context(), lots.LotFields{
+		saveLotFields := lots.LotFields{
 			"offer_id": lots.LotField{Value: "123"},
-		})
+		}
+
+		expectedBody := url.Values{}
+		for name, v := range saveLotFields {
+			expectedBody.Set(name, v.Value)
+		}
+		expectedBody.Set(funpay.FormCSRFToken, "csrf")
+		expectedBody.Set("location", "trade")
+
+		fp.EXPECT().BaseURL().Times(1).Return("https://funpay.com")
+		fp.EXPECT().CSRFToken().Times(1).Return("csrf")
+		fp.EXPECT().Request(
+			t.Context(),
+			"https://funpay.com/lots/offerSave",
+			gomock.Any(),
+		).Times(1).Return(nil, nil)
+
+		err := fpLots.Save(t.Context(), saveLotFields)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
