@@ -97,7 +97,7 @@ func TestLots_LotFields(t *testing.T) {
 
 		expected := lots.LotFields{
 			"title":       lots.LotField{Value: "Test Title"},
-			"active":      lots.LotField{Value: "on", Variants: []string{"on", ""}},
+			"active":      lots.LotField{Value: "on", Variants: []string{"on"}},
 			"description": lots.LotField{Value: "Test Description"},
 			"category":    lots.LotField{Value: "2", Variants: []string{"1", "2"}},
 		}
