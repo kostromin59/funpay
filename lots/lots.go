@@ -43,7 +43,7 @@ func New(fp funpay.Funpay) *Lots {
 //	- Set offer_id = "0" to create lot;
 //	- Set deleted = "1" to delete lot.
 func (l *Lots) Save(ctx context.Context, fields LotFields) error {
-	const op = "Lots.SaveLot"
+	const op = "Lots.Save"
 
 	body := url.Values{}
 
@@ -68,7 +68,7 @@ func (l *Lots) Save(ctx context.Context, fields LotFields) error {
 
 // Fields loads [Fields] for nodeID (category) or offerID. Values will be filled with provided offerID.
 func (l *Lots) Fields(ctx context.Context, nodeID, offerID string) (LotFields, error) {
-	const op = "Lots.LotFields"
+	const op = "Lots.Fields"
 
 	reqURL, err := url.Parse(l.fp.BaseURL())
 	if err != nil {
@@ -176,7 +176,7 @@ func (l *Lots) extractFields(doc *goquery.Document) LotFields {
 
 // ByUser gets lots for provided userID. Key represents nodeID, value represents slice of offerIDs.
 func (l *Lots) ByUser(ctx context.Context, userID int64) (map[string][]string, error) {
-	const op = "Lots.LotsByUser"
+	const op = "Lots.ByUser"
 
 	reqURL, err := url.Parse(l.fp.BaseURL())
 	if err != nil {
@@ -200,7 +200,7 @@ func (l *Lots) ByUser(ctx context.Context, userID int64) (map[string][]string, e
 
 // Key represents nodeID, value represents slice of offerIDs.
 func (l *Lots) extractLots(doc *goquery.Document) (map[string][]string, error) {
-	const op = "lots.extractLots"
+	const op = "Lots.extractLots"
 
 	offerUrls := doc.Find(".offer")
 	lots := make(map[string][]string)
@@ -248,7 +248,7 @@ func (l *Lots) extractLots(doc *goquery.Document) (map[string][]string, error) {
 // Update updates lots for current account. Use [Lots.List] to get loaded lots.
 // Returns [ErrAccountUnauthorized] if user id equals 0. Call [Funpay.Update] to update account info.
 func (l *Lots) Update(ctx context.Context) error {
-	const op = "Funpay.UpdateLots"
+	const op = "Lots.Update"
 
 	id := l.fp.UserID()
 	if id == 0 {
