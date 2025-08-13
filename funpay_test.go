@@ -15,7 +15,10 @@ import (
 )
 
 func TestFunpay_Request(t *testing.T) {
+	t.Parallel()
 	t.Run("successful request with cookies", func(t *testing.T) {
+		t.Parallel()
+
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if cookie, err := r.Cookie(funpay.CookieGoldenKey); err != nil || cookie.Value != "test_key" {
 				w.WriteHeader(http.StatusUnauthorized)
@@ -40,6 +43,8 @@ func TestFunpay_Request(t *testing.T) {
 	})
 
 	t.Run("unauthorized request", func(t *testing.T) {
+		t.Parallel()
+
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusForbidden)
 		}))
@@ -55,6 +60,8 @@ func TestFunpay_Request(t *testing.T) {
 	})
 
 	t.Run("too many requests", func(t *testing.T) {
+		t.Parallel()
+
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusTooManyRequests)
 		}))
@@ -70,6 +77,8 @@ func TestFunpay_Request(t *testing.T) {
 	})
 
 	t.Run("bad status code", func(t *testing.T) {
+		t.Parallel()
+
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusInternalServerError)
 		}))
@@ -85,6 +94,8 @@ func TestFunpay_Request(t *testing.T) {
 	})
 
 	t.Run("with proxy", func(t *testing.T) {
+		t.Parallel()
+
 		proxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
 		}))
@@ -108,6 +119,8 @@ func TestFunpay_Request(t *testing.T) {
 	})
 
 	t.Run("invalid URL", func(t *testing.T) {
+		t.Parallel()
+
 		fp := funpay.New("test_key", "test_agent")
 		_, err := fp.Request(t.Context(), "://invalid.url")
 		if err == nil {
@@ -116,6 +129,8 @@ func TestFunpay_Request(t *testing.T) {
 	})
 
 	t.Run("context cancellation", func(t *testing.T) {
+		t.Parallel()
+
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
 		}))
@@ -134,6 +149,8 @@ func TestFunpay_Request(t *testing.T) {
 	})
 
 	t.Run("non-RU locale adds prefix", func(t *testing.T) {
+		t.Parallel()
+
 		setupTS := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "text/html")
 			fmt.Fprint(w, `
@@ -181,6 +198,8 @@ func TestFunpay_Request(t *testing.T) {
 	})
 
 	t.Run("cookies are updated from response", func(t *testing.T) {
+		t.Parallel()
+
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			http.SetCookie(w, &http.Cookie{Name: "new_cookie", Value: "new_value"})
 			w.WriteHeader(http.StatusOK)
@@ -210,6 +229,8 @@ func TestFunpay_Request(t *testing.T) {
 	})
 
 	t.Run("sets custom HTTP method", func(t *testing.T) {
+		t.Parallel()
+
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.Method != http.MethodPost {
 				w.WriteHeader(http.StatusBadRequest)
@@ -238,6 +259,8 @@ func TestFunpay_Request(t *testing.T) {
 	})
 
 	t.Run("sets custom headers", func(t *testing.T) {
+		t.Parallel()
+
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.Header.Get("X-Custom-Header") != "test-value" {
 				w.WriteHeader(http.StatusBadRequest)
@@ -266,6 +289,8 @@ func TestFunpay_Request(t *testing.T) {
 	})
 
 	t.Run("sets custom cookies", func(t *testing.T) {
+		t.Parallel()
+
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			cookie, err := r.Cookie("test_cookie")
 			if err != nil || cookie.Value != "test_value" {
@@ -295,6 +320,8 @@ func TestFunpay_Request(t *testing.T) {
 	})
 
 	t.Run("sets request body", func(t *testing.T) {
+		t.Parallel()
+
 		const testBody = "test request body"
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			body, err := io.ReadAll(r.Body)
@@ -329,6 +356,8 @@ func TestFunpay_Request(t *testing.T) {
 	})
 
 	t.Run("uses custom proxy", func(t *testing.T) {
+		t.Parallel()
+
 		proxyServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
 		}))
@@ -361,6 +390,8 @@ func TestFunpay_Request(t *testing.T) {
 	})
 
 	t.Run("sets user agent header", func(t *testing.T) {
+		t.Parallel()
+
 		const userAgent = "custom-user-agent"
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.UserAgent() != userAgent {
@@ -386,6 +417,8 @@ func TestFunpay_Request(t *testing.T) {
 	})
 
 	t.Run("invalid HTTP method", func(t *testing.T) {
+		t.Parallel()
+
 		fp := funpay.New("test_key", "test_agent")
 
 		_, err := fp.Request(
@@ -401,7 +434,10 @@ func TestFunpay_Request(t *testing.T) {
 }
 
 func TestFunpay_RequestHTML(t *testing.T) {
+	t.Parallel()
 	t.Run("successful request with app data", func(t *testing.T) {
+		t.Parallel()
+
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "text/html")
 			fmt.Fprint(w, `
@@ -441,6 +477,8 @@ func TestFunpay_RequestHTML(t *testing.T) {
 	})
 
 	t.Run("missing app data", func(t *testing.T) {
+		t.Parallel()
+
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "text/html")
 			fmt.Fprint(w, `<html><body></body></html>`)
@@ -457,6 +495,8 @@ func TestFunpay_RequestHTML(t *testing.T) {
 	})
 
 	t.Run("invalid app data json", func(t *testing.T) {
+		t.Parallel()
+
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "text/html")
 			fmt.Fprint(w, `<html><body data-app-data="invalid"></body></html>`)
@@ -473,6 +513,8 @@ func TestFunpay_RequestHTML(t *testing.T) {
 	})
 
 	t.Run("zero userID in app data", func(t *testing.T) {
+		t.Parallel()
+
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "text/html")
 			fmt.Fprint(w, `<html><body data-app-data='{"userId":0,"csrf-token":"test","locale":"ru"}'></body></html>`)
@@ -489,6 +531,8 @@ func TestFunpay_RequestHTML(t *testing.T) {
 	})
 
 	t.Run("html parse error", func(t *testing.T) {
+		t.Parallel()
+
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "text/html")
 			// Close connection immediately
@@ -511,6 +555,8 @@ func TestFunpay_RequestHTML(t *testing.T) {
 	})
 
 	t.Run("updates account info", func(t *testing.T) {
+		t.Parallel()
+
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "text/html")
 			fmt.Fprint(w, `
@@ -551,7 +597,10 @@ func TestFunpay_RequestHTML(t *testing.T) {
 }
 
 func TestFunpay_UpdateLocale(t *testing.T) {
+	t.Parallel()
 	t.Run("successful locale update", func(t *testing.T) {
+		t.Parallel()
+
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.URL.Query().Get("setlocale") != "en" {
 				t.Errorf("expected setlocale=en, got %s", r.URL.Query().Get("setlocale"))
@@ -603,6 +652,8 @@ func TestFunpay_UpdateLocale(t *testing.T) {
 	})
 
 	t.Run("invalid URL handling", func(t *testing.T) {
+		t.Parallel()
+
 		fp := funpay.New("test_key", "test_agent")
 		fp.SetBaseURL("http://invalid.url:12345")
 
@@ -613,6 +664,8 @@ func TestFunpay_UpdateLocale(t *testing.T) {
 	})
 
 	t.Run("unauthorized request", func(t *testing.T) {
+		t.Parallel()
+
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusForbidden)
 		}))
@@ -628,6 +681,8 @@ func TestFunpay_UpdateLocale(t *testing.T) {
 	})
 
 	t.Run("empty app data in response", func(t *testing.T) {
+		t.Parallel()
+
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "text/html")
 			fmt.Fprint(w, `<html><body></body></html>`)

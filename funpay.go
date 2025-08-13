@@ -28,6 +28,7 @@ var (
 	ErrAccountUnauthorized = errors.New("account unauthorized")
 )
 
+//go:generate go tool mockgen -destination mocks/funpay.go -package mocks . Funpay
 type Funpay interface {
 	// UserID returns the unique identifier of the Funpay account.
 	// Returns 0 if the account hasn't been updated yet.
@@ -282,8 +283,9 @@ func (fp *FunpayClient) Request(ctx context.Context, requestURL string, opts ...
 		t.Proxy = http.ProxyURL(reqOpts.proxy)
 	}
 
-	c := http.DefaultClient
-	c.Transport = t
+	c := &http.Client{
+		Transport: t,
+	}
 
 	reqURL, err := url.Parse(requestURL)
 	if err != nil {

@@ -17,17 +17,19 @@ go get github.com/kostromin59/funpay
 ### Account handling
 ```go
 func main() {
-  goldenKey := "gk"
-  ua := "ua"
+	goldenKey := "gk"
+	userAgent := "ua"
 
-  fp := funpay.New(goldenKey, ua)
-  // Update account info, csrf token and cookies
-  if err := fp.Update(context.Background()); err != nil {
+	fp := funpay.New(goldenKey, userAgent)
+
+	// Update account info, csrf token and cookies
+	// Should be called every 40-60 minutes
+	if err := fp.Update(context.TODO()); err != nil {
 		log.Println(err.Error())
 		return
 	}
 
- 	log.Printf("account id: %d", fp.UserID())
+	log.Printf("account id: %d", fp.UserID())
 	log.Printf("username: %q", fp.Username())
 	log.Printf("balance: %d", fp.Balance())
 	log.Printf("locale: %q", fp.Locale())
@@ -37,39 +39,44 @@ func main() {
 ### Lots
 ```go
 func main() {
-  lots := funpay.NewLots(fp)
+	fp := funpay.New("golden key", "user agent")
+	if err := fp.Update(context.TODO()); err != nil {
+		panic(err)
+	}
 
-  // Load lots for current user
-	if err := lots.UpdateLots(context.Background()); err != nil {
+	fpLots := lots.New(fp)
+
+	// Load lots for current user
+	if err := fpLots.Update(context.TODO()); err != nil {
 		log.Println(err.Error())
 		return
 	}
 
 	// Returns [nodeID]: []string{offerIDs...}
-	lotsList := lots.List()
+	lotsList := fpLots.List()
 	log.Printf("count of nodes: %d", len(lotsList))
 
 	// Returns all fields with values to update lot (offer)
-	fields, err := lots.LotFields(context.Background(), "", "some_id")
+	fields, err := fpLots.Fields(context.TODO(), "", "some_id")
 	if err != nil {
 		log.Println(err.Error())
 		return
 	}
 
 	// Change field
-	fields["price"] = funpay.LotField{
+	fields["price"] = lots.Field{
 		Value: "1500",
 	}
 
 	// Save lot (offer)
-	if err := lots.SaveLot(context.Background(), fields); err != nil {
+	if err := fpLots.Save(context.Background(), fields); err != nil {
 		log.Println(err.Error())
 		return
 	}
 
 	// Returns all fields of lot by node (category) without values
-  // 2852 - Accounts Call of Duty: Black Ops 6
-	fields, err = lots.LotFields(context.Background(), "2852", "")
+	// 2852 - Accounts Call of Duty: Black Ops 6
+	fields, err = fpLots.Fields(context.Background(), "2852", "")
 	if err != nil {
 		log.Println(err.Error())
 		return
@@ -85,7 +92,8 @@ func main() {
 > This list may grow while developing.
 
 - [X] Other
-  - [X] Use single entrypoint (funpay.New)
+  - [X] Use single entrypoint as base (funpay.New)
+  - [X] Dedicated `lots` module
 - [X] Requests
   - [X] Request with account data
   - [X] Proxy support
