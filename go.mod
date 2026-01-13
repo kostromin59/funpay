@@ -1,6 +1,6 @@
 module github.com/kostromin59/funpay
 
-go 1.24.2
+go 1.24.0
 
 require github.com/PuerkitoBio/goquery v1.10.3
 
