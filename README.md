@@ -57,7 +57,7 @@ func main() {
 	log.Printf("count of nodes: %d", len(lotsList))
 
 	// Returns all fields with values to update lot (offer)
-	fields, err := fpLots.Fields(context.TODO(), "", "some_id")
+	fields, err := fpLots.FieldsByOfferID(context.TODO(), "", "some_id")
 	if err != nil {
 		log.Println(err.Error())
 		return
@@ -76,7 +76,7 @@ func main() {
 
 	// Returns all fields of lot by node (category) without values
 	// 2852 - Accounts Call of Duty: Black Ops 6
-	fields, err = fpLots.Fields(context.Background(), "2852", "")
+	fields, err = fpLots.FieldsByNodeID(context.Background(), "2852")
 	if err != nil {
 		log.Println(err.Error())
 		return
@@ -97,7 +97,7 @@ func main() {
 - [X] Requests
   - [X] Request with account data
   - [X] Proxy support
-  - [X] Locale support (`setlocale` query param and path param for `en` and `uk`)
+  - [X] Locale support (`setlocale` query param and path param for `en`)
   - [X] Auto load locale
 - [X] Account
   - [X] Info
@@ -117,6 +117,7 @@ func main() {
   - [X] Update lot
   - [X] Delete lot
   - [X] Create lot
-- [ ] Deploy
+- [X] Deploy
   - [X] Deploy into pkg.go.dev
-  - [ ] Improve documentation
+  - [X] Improve documentation
+  - [X] Tests
