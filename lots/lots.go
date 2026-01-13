@@ -13,8 +13,19 @@ import (
 	"github.com/kostromin59/funpay"
 )
 
-// Fields represents type contains fields from edit lot page.
-type Fields map[string]Field
+type (
+	// NodeID represents ID of category.
+	NodeID string
+	// OfferID represents ID of offer.
+	OfferID string
+)
+
+type (
+	// FieldKey represents key type for [Fields].
+	FieldKey string
+	// Fields represents type contains fields from edit lot page.
+	Fields map[FieldKey]Field
+)
 
 // Field represents type contains description of the field on edit lot page.
 type Field struct {
@@ -32,24 +43,27 @@ type Lots interface {
 	//	- Set deleted = "1" to delete lot.
 	Save(ctx context.Context, fields Fields) error
 
-	// Fields loads [Fields] for nodeID (category) or offerID. Values will be filled with provided offerID.
-	Fields(ctx context.Context, nodeID, offerID string) (Fields, error)
+	// Fields loads [Fields] for [OfferID]. Values will be filled with provided offerID.
+	FieldsByOfferID(ctx context.Context, offerID OfferID) (Fields, error)
+
+	// FieldsByNodeID loads [Fields] for [NodeID].
+	FieldsByNodeID(ctx context.Context, nodeID NodeID) (Fields, error)
 
 	// ByUser gets lots for provided userID. Key represents nodeID, value represents slice of offerIDs.
-	ByUser(ctx context.Context, userID int64) (map[string][]string, error)
+	ByUser(ctx context.Context, userID int64) (map[NodeID][]OfferID, error)
 
 	// Update updates lots for current account. Use [Lots.List] to get loaded lots.
 	// Returns [funpay.ErrAccountUnauthorized] if user id equals 0. Call [Funpay.Update] to update account info.
 	Update(ctx context.Context) error
 
-	// List returns loaded lots (see [Lots.Update]) in format nodeID: slice of offerIDs.
-	List() map[string][]string
+	// List returns loaded lots (see [Lots.Update]).
+	List() map[NodeID][]OfferID
 }
 
 type LotsClient struct {
 	fp funpay.Funpay
 
-	list map[string][]string
+	list map[NodeID][]OfferID
 	mu   sync.RWMutex
 }
 
@@ -59,19 +73,13 @@ func New(fp funpay.Funpay) Lots {
 	}
 }
 
-// Save makes request to /lots/offerSave. Use [Lots.Fields] to get fields.
-//
-//	Fields:
-//	- Provide offer_id to update lot;
-//	- Set offer_id = "0" to create lot;
-//	- Set deleted = "1" to delete lot.
 func (l *LotsClient) Save(ctx context.Context, fields Fields) error {
-	const op = "Lots.Save"
+	const op = "LotsClient.Save"
 
 	body := url.Values{}
 
 	for name, v := range fields {
-		body.Set(name, v.Value)
+		body.Set(string(name), v.Value)
 	}
 
 	body.Set(funpay.FormCSRFToken, l.fp.CSRFToken())
@@ -89,9 +97,30 @@ func (l *LotsClient) Save(ctx context.Context, fields Fields) error {
 	return nil
 }
 
-// Fields loads [Fields] for nodeID (category) or offerID. Values will be filled with provided offerID.
-func (l *LotsClient) Fields(ctx context.Context, nodeID, offerID string) (Fields, error) {
-	const op = "Lots.Fields"
+func (l *LotsClient) FieldsByOfferID(ctx context.Context, offerID OfferID) (Fields, error) {
+	const op = "LotsClient.FieldsByOfferID"
+
+	fields, err := l.fields(ctx, "", offerID)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+
+	return fields, nil
+}
+
+func (l *LotsClient) FieldsByNodeID(ctx context.Context, nodeID NodeID) (Fields, error) {
+	const op = "LotsClient.FieldsByOfferID"
+
+	fields, err := l.fields(ctx, nodeID, "")
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+
+	return fields, nil
+}
+
+func (l *LotsClient) fields(ctx context.Context, nodeID NodeID, offerID OfferID) (Fields, error) {
+	const op = "LotsClient.fields"
 
 	reqURL, err := url.Parse(l.fp.BaseURL())
 	if err != nil {
@@ -102,10 +131,10 @@ func (l *LotsClient) Fields(ctx context.Context, nodeID, offerID string) (Fields
 
 	q := reqURL.Query()
 	if offerID != "" {
-		q.Set("offer", offerID)
+		q.Set("offer", string(offerID))
 	}
 	if nodeID != "" {
-		q.Set("node", nodeID)
+		q.Set("node", string(nodeID))
 	}
 	reqURL.RawQuery = q.Encode()
 
@@ -136,7 +165,7 @@ func (l *LotsClient) extractFields(doc *goquery.Document) Fields {
 				field.Value = "on"
 			}
 
-			fields[name] = field
+			fields[FieldKey(name)] = field
 
 		default:
 			if name == funpay.FormCSRFToken {
@@ -144,7 +173,7 @@ func (l *LotsClient) extractFields(doc *goquery.Document) Fields {
 			}
 
 			value := s.AttrOr("value", "")
-			fields[name] = Field{
+			fields[FieldKey(name)] = Field{
 				Value: value,
 			}
 		}
@@ -157,7 +186,7 @@ func (l *LotsClient) extractFields(doc *goquery.Document) Fields {
 		}
 
 		value := s.Text()
-		fields[name] = Field{
+		fields[FieldKey(name)] = Field{
 			Value: value,
 		}
 	})
@@ -191,15 +220,14 @@ func (l *LotsClient) extractFields(doc *goquery.Document) Fields {
 
 		field.Variants = variants
 
-		fields[name] = field
+		fields[FieldKey(name)] = field
 	})
 
 	return fields
 }
 
-// ByUser gets lots for provided userID. Key represents nodeID, value represents slice of offerIDs.
-func (l *LotsClient) ByUser(ctx context.Context, userID int64) (map[string][]string, error) {
-	const op = "Lots.ByUser"
+func (l *LotsClient) ByUser(ctx context.Context, userID int64) (map[NodeID][]OfferID, error) {
+	const op = "LotsClient.ByUser"
 
 	reqURL, err := url.Parse(l.fp.BaseURL())
 	if err != nil {
@@ -221,12 +249,12 @@ func (l *LotsClient) ByUser(ctx context.Context, userID int64) (map[string][]str
 	return lots, nil
 }
 
-// Key represents nodeID, value represents slice of offerIDs.
-func (l *LotsClient) extractLots(doc *goquery.Document) (map[string][]string, error) {
-	const op = "Lots.extractLots"
+func (l *LotsClient) extractLots(doc *goquery.Document) (map[NodeID][]OfferID, error) {
+	const op = "LotsClient.extractLots"
+
+	lots := make(map[NodeID][]OfferID)
 
 	offerUrls := doc.Find(".offer")
-	lots := make(map[string][]string)
 	for _, offer := range offerUrls.EachIter() {
 		nodeHref, ok := offer.Find("h3 a[href]").Attr("href")
 		if !ok {
@@ -244,7 +272,7 @@ func (l *LotsClient) extractLots(doc *goquery.Document) (map[string][]string, er
 		}
 
 		urlElements := offer.Find("a.tc-item[href]")
-		offerIDs := make([]string, 0, urlElements.Length())
+		offerIDs := make([]OfferID, 0, urlElements.Length())
 		urlElements.Each(func(i int, s *goquery.Selection) {
 			href, ok := s.Attr("href")
 			if !ok {
@@ -259,19 +287,17 @@ func (l *LotsClient) extractLots(doc *goquery.Document) (map[string][]string, er
 			q := rawURL.Query()
 			offerID := q.Get("id")
 
-			offerIDs = append(offerIDs, offerID)
+			offerIDs = append(offerIDs, OfferID(offerID))
 		})
 
-		lots[pathComponents[2]] = offerIDs
+		lots[NodeID(pathComponents[2])] = offerIDs
 	}
 
 	return lots, nil
 }
 
-// Update updates lots for current account. Use [Lots.List] to get loaded lots.
-// Returns [funpay.ErrAccountUnauthorized] if user id equals 0. Call [Funpay.Update] to update account info.
 func (l *LotsClient) Update(ctx context.Context) error {
-	const op = "Lots.Update"
+	const op = "LotsClient.Update"
 
 	id := l.fp.UserID()
 	if id == 0 {
@@ -288,15 +314,14 @@ func (l *LotsClient) Update(ctx context.Context) error {
 	return nil
 }
 
-// List returns loaded lots (see [Lots.Update]) in format nodeID: slice of offerIDs.
-func (l *LotsClient) List() map[string][]string {
+func (l *LotsClient) List() map[NodeID][]OfferID {
 	l.mu.RLock()
 	list := l.list
 	l.mu.RUnlock()
 	return list
 }
 
-func (l *LotsClient) updateList(list map[string][]string) {
+func (l *LotsClient) updateList(list map[NodeID][]OfferID) {
 	l.mu.Lock()
 	l.list = list
 	l.mu.Unlock()

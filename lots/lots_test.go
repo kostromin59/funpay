@@ -31,7 +31,7 @@ func TestLots_Save(t *testing.T) {
 
 		expectedBody := url.Values{}
 		for name, v := range saveLotFields {
-			expectedBody.Set(name, v.Value)
+			expectedBody.Set(string(name), v.Value)
 		}
 		expectedBody.Set(funpay.FormCSRFToken, "csrf")
 		expectedBody.Set("location", "trade")
@@ -76,7 +76,7 @@ func TestLots_Save(t *testing.T) {
 	})
 }
 
-func TestLots_Fields(t *testing.T) {
+func TestLots_FieldsByOfferID(t *testing.T) {
 	t.Run("successful fields retrieval with offerID", func(t *testing.T) {
 		t.Parallel()
 
@@ -106,10 +106,10 @@ func TestLots_Fields(t *testing.T) {
 		fp.EXPECT().BaseURL().Times(1).Return("https://funpay.com")
 		fp.EXPECT().RequestHTML(
 			t.Context(),
-			"https://funpay.com/lots/offerEdit?offer=123",
+			"https://funpay.com/lots/offerEdit?offer=something",
 		).Times(1).Return(doc, nil)
 
-		fields, err := fpLots.Fields(t.Context(), "", "123")
+		fields, err := fpLots.FieldsByOfferID(t.Context(), "something")
 		if err != nil {
 			t.Fatalf("LotFields failed: %v", err)
 		}
@@ -119,46 +119,6 @@ func TestLots_Fields(t *testing.T) {
 			"active":      lots.Field{Value: "on", Variants: []string{"on"}},
 			"description": lots.Field{Value: "Test Description"},
 			"category":    lots.Field{Value: "2", Variants: []string{"1", "2"}},
-		}
-
-		if !reflect.DeepEqual(fields, expected) {
-			t.Errorf("expected %+v, got %+v", expected, fields)
-		}
-	})
-
-	t.Run("successful fields retrieval with nodeID", func(t *testing.T) {
-		t.Parallel()
-
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-
-		fp := mocks.NewMockFunpay(ctrl)
-		fpLots := lots.New(fp)
-
-		doc, err := goquery.NewDocumentFromReader(strings.NewReader(`<html>
-			<body data-app-data='{"userId":123,"csrf-token":"test","locale":"ru"}'>
-				<form>
-					<input type="text" name="title" value="New Lot">
-				</form>
-			</body>
-		</html>`))
-		if err != nil {
-			t.Fatal("invalid doc provided")
-		}
-
-		fp.EXPECT().BaseURL().Times(1).Return("https://funpay.com")
-		fp.EXPECT().RequestHTML(
-			t.Context(),
-			"https://funpay.com/lots/offerEdit?node=456",
-		).Times(1).Return(doc, nil)
-
-		fields, err := fpLots.Fields(t.Context(), "456", "")
-		if err != nil {
-			t.Fatalf("LotFields failed: %v", err)
-		}
-
-		expected := lots.Fields{
-			"title": lots.Field{Value: "New Lot"},
 		}
 
 		if !reflect.DeepEqual(fields, expected) {
@@ -177,7 +137,7 @@ func TestLots_Fields(t *testing.T) {
 
 		fp.EXPECT().BaseURL().Times(1).Return(":not a url")
 
-		_, err := fpLots.Fields(t.Context(), "456", "")
+		_, err := fpLots.FieldsByOfferID(t.Context(), "something")
 		if err == nil {
 			t.Fatal("expected error for invalid URL, got nil")
 		}
@@ -195,10 +155,10 @@ func TestLots_Fields(t *testing.T) {
 		fp.EXPECT().BaseURL().Times(1).Return("https://funpay.com")
 		fp.EXPECT().RequestHTML(
 			t.Context(),
-			"https://funpay.com/lots/offerEdit?node=456",
+			"https://funpay.com/lots/offerEdit?node=something",
 		).Times(1).Return(nil, funpay.ErrAccountUnauthorized)
 
-		_, err := fpLots.Fields(t.Context(), "456", "")
+		_, err := fpLots.FieldsByOfferID(t.Context(), "something")
 		if !errors.Is(err, funpay.ErrAccountUnauthorized) {
 			t.Fatalf("expected ErrAccountUnauthorized, got %v", err)
 		}
@@ -225,10 +185,10 @@ func TestLots_Fields(t *testing.T) {
 		fp.EXPECT().BaseURL().Times(1).Return("https://funpay.com")
 		fp.EXPECT().RequestHTML(
 			t.Context(),
-			"https://funpay.com/lots/offerEdit?node=456",
+			"https://funpay.com/lots/offerEdit?node=something",
 		).Times(1).Return(doc, nil)
 
-		fields, err := fpLots.Fields(t.Context(), "456", "")
+		fields, err := fpLots.FieldsByOfferID(t.Context(), "something")
 		if err != nil {
 			t.Fatalf("LotFields failed: %v", err)
 		}
@@ -262,10 +222,161 @@ func TestLots_Fields(t *testing.T) {
 		fp.EXPECT().BaseURL().Times(1).Return("https://funpay.com")
 		fp.EXPECT().RequestHTML(
 			t.Context(),
+			"https://funpay.com/lots/offerEdit?node=something",
+		).Times(1).Return(doc, nil)
+
+		fields, err := fpLots.FieldsByOfferID(t.Context(), "something")
+		if err != nil {
+			t.Fatalf("LotFields failed: %v", err)
+		}
+
+		if _, exists := fields["csrf-token"]; exists {
+			t.Error("expected csrf-token field to be ignored")
+		}
+	})
+}
+
+func TestLots_FieldsByNodeID(t *testing.T) {
+	t.Run("successful fields retrieval with nodeID", func(t *testing.T) {
+		t.Parallel()
+
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		fp := mocks.NewMockFunpay(ctrl)
+		fpLots := lots.New(fp)
+
+		doc, err := goquery.NewDocumentFromReader(strings.NewReader(`<html>
+			<body data-app-data='{"userId":123,"csrf-token":"test","locale":"ru"}'>
+				<form>
+					<input type="text" name="title" value="New Lot">
+				</form>
+			</body>
+		</html>`))
+		if err != nil {
+			t.Fatal("invalid doc provided")
+		}
+
+		fp.EXPECT().BaseURL().Times(1).Return("https://funpay.com")
+		fp.EXPECT().RequestHTML(
+			t.Context(),
 			"https://funpay.com/lots/offerEdit?node=456",
 		).Times(1).Return(doc, nil)
 
-		fields, err := fpLots.Fields(t.Context(), "456", "")
+		fields, err := fpLots.FieldsByNodeID(t.Context(), "456")
+		if err != nil {
+			t.Fatalf("LotFields failed: %v", err)
+		}
+
+		expected := lots.Fields{
+			"title": lots.Field{Value: "New Lot"},
+		}
+
+		if !reflect.DeepEqual(fields, expected) {
+			t.Errorf("expected %+v, got %+v", expected, fields)
+		}
+	})
+
+	t.Run("invalid base URL", func(t *testing.T) {
+		t.Parallel()
+
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		fp := mocks.NewMockFunpay(ctrl)
+		fpLots := lots.New(fp)
+
+		fp.EXPECT().BaseURL().Times(1).Return(":not a url")
+
+		_, err := fpLots.FieldsByNodeID(t.Context(), "something")
+		if err == nil {
+			t.Fatal("expected error for invalid URL, got nil")
+		}
+	})
+
+	t.Run("unauthorized request", func(t *testing.T) {
+		t.Parallel()
+
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		fp := mocks.NewMockFunpay(ctrl)
+		fpLots := lots.New(fp)
+
+		fp.EXPECT().BaseURL().Times(1).Return("https://funpay.com")
+		fp.EXPECT().RequestHTML(
+			t.Context(),
+			"https://funpay.com/lots/offerEdit?node=something",
+		).Times(1).Return(nil, funpay.ErrAccountUnauthorized)
+
+		_, err := fpLots.FieldsByNodeID(t.Context(), "something")
+		if !errors.Is(err, funpay.ErrAccountUnauthorized) {
+			t.Fatalf("expected ErrAccountUnauthorized, got %v", err)
+		}
+	})
+
+	t.Run("empty form fields", func(t *testing.T) {
+		t.Parallel()
+
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		fp := mocks.NewMockFunpay(ctrl)
+		fpLots := lots.New(fp)
+
+		doc, err := goquery.NewDocumentFromReader(strings.NewReader(`<html>
+			<body data-app-data='{"userId":123,"csrf-token":"test","locale":"ru"}'>
+				<form></form>
+			</body>
+		</html>`))
+		if err != nil {
+			t.Fatal("invalid doc provided")
+		}
+
+		fp.EXPECT().BaseURL().Times(1).Return("https://funpay.com")
+		fp.EXPECT().RequestHTML(
+			t.Context(),
+			"https://funpay.com/lots/offerEdit?node=something",
+		).Times(1).Return(doc, nil)
+
+		fields, err := fpLots.FieldsByNodeID(t.Context(), "something")
+		if err != nil {
+			t.Fatalf("LotFields failed: %v", err)
+		}
+
+		if len(fields) != 0 {
+			t.Errorf("expected empty fields, got %+v", fields)
+		}
+	})
+
+	t.Run("ignores CSRF token field", func(t *testing.T) {
+		t.Parallel()
+
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		fp := mocks.NewMockFunpay(ctrl)
+		fpLots := lots.New(fp)
+
+		doc, err := goquery.NewDocumentFromReader(strings.NewReader(`<html>
+			<body data-app-data='{"userId":123,"csrf-token":"test","locale":"ru"}'>
+				<form>
+					<input type="hidden" name="csrf_token" value="should-be-ignored">
+					<input type="text" name="title" value="Test Title">
+				</form>
+			</body>
+		</html>`))
+		if err != nil {
+			t.Fatal("invalid doc provided")
+		}
+
+		fp.EXPECT().BaseURL().Times(1).Return("https://funpay.com")
+		fp.EXPECT().RequestHTML(
+			t.Context(),
+			"https://funpay.com/lots/offerEdit?node=something",
+		).Times(1).Return(doc, nil)
+
+		fields, err := fpLots.FieldsByNodeID(t.Context(), "something")
 		if err != nil {
 			t.Fatalf("LotFields failed: %v", err)
 		}

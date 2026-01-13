@@ -30,6 +30,13 @@ var (
 
 //go:generate go tool mockgen -destination mocks/funpay.go -package mocks . Funpay
 type Funpay interface {
+	FunpayUser
+	FunpayAuthHandler
+	FunpayUpdater
+	FunpayRequester
+}
+
+type FunpayUser interface {
 	// UserID returns the unique identifier of the Funpay account.
 	// Returns 0 if the account hasn't been updated yet.
 	UserID() int64
@@ -42,10 +49,6 @@ type Funpay interface {
 
 	// Balance returns the account's balance. Must be loaded after update.
 	Balance() int64
-
-	FunpayAuthHandler
-	FunpayUpdater
-	FunpayRequester
 }
 
 type FunpayAuthHandler interface {
@@ -93,12 +96,12 @@ type FunpayRequester interface {
 	//
 	// Specific returns:
 	//   - [*http.Response] and [ErrAccountUnauthorized] if status code equals 403,
-	//   - [*http.Response] and [ErrToManyRequests] if status code equals 429,
+	//   - [*http.Response] and [ErrTooManyRequests] if status code equals 429,
 	//   - [*http.Response] [ErrBadStatusCode] otherwise.
 	Request(ctx context.Context, requestURL string, opts ...RequestOpt) (*http.Response, error)
 
 	// RequestHTML calls [FunpayRequester.Request] and converting response as [*goquery.Document].
-	// Updates [AppData] and account info (see [Funpay.Account]).
+	// Updates [AppData] and account info (see [FunpayUser]).
 	//
 	// Returns nil and [ErrAccountUnauthorized] if [Funpay.UserID] is zero.
 	RequestHTML(ctx context.Context, requestURL string, opts ...RequestOpt) (*goquery.Document, error)
@@ -129,8 +132,6 @@ func New(goldenKey, userAgent string) Funpay {
 	}
 }
 
-// UserID returns the unique identifier of the Funpay account.
-// Returns 0 if the account hasn't been updated yet.
 func (fp *FunpayClient) UserID() int64 {
 	fp.mu.RLock()
 	userID := fp.userID
@@ -138,7 +139,6 @@ func (fp *FunpayClient) UserID() int64 {
 	return userID
 }
 
-// GoldenKey returns the account's authentication token provided into funpay (see [New]).
 func (fp *FunpayClient) GoldenKey() string {
 	fp.mu.RLock()
 	gk := fp.goldenKey
@@ -146,7 +146,6 @@ func (fp *FunpayClient) GoldenKey() string {
 	return gk
 }
 
-// UserAgent returns the account's user agent provided into funpay (see [New]).
 func (fp *FunpayClient) UserAgent() string {
 	fp.mu.RLock()
 	ua := fp.userAgent
@@ -154,7 +153,6 @@ func (fp *FunpayClient) UserAgent() string {
 	return ua
 }
 
-// Locale returns the account's locale (see [Locale]). Must be loaded after update.
 func (fp *FunpayClient) Locale() Locale {
 	fp.mu.RLock()
 	locale := fp.locale
@@ -162,7 +160,6 @@ func (fp *FunpayClient) Locale() Locale {
 	return locale
 }
 
-// Username returns the account's username. Must be loaded after update.
 func (fp *FunpayClient) Username() string {
 	fp.mu.RLock()
 	username := fp.username
@@ -170,7 +167,6 @@ func (fp *FunpayClient) Username() string {
 	return username
 }
 
-// Balance returns the account's balance. Must be loaded after update.
 func (fp *FunpayClient) Balance() int64 {
 	fp.mu.RLock()
 	balance := fp.balance
@@ -178,7 +174,6 @@ func (fp *FunpayClient) Balance() int64 {
 	return balance
 }
 
-// CSRFToken returns CSRF token extracted from [AppData]. CSRF token updates every call [Funpay.RequestHTML].
 func (fp *FunpayClient) CSRFToken() string {
 	fp.mu.RLock()
 	csrf := fp.csrfToken
@@ -186,7 +181,6 @@ func (fp *FunpayClient) CSRFToken() string {
 	return csrf
 }
 
-// Cookies returns a safe copy of all session cookies.
 func (fp *FunpayClient) Cookies() []*http.Cookie {
 	fp.mu.RLock()
 	c := make([]*http.Cookie, len(fp.cookies))
@@ -195,7 +189,6 @@ func (fp *FunpayClient) Cookies() []*http.Cookie {
 	return c
 }
 
-// BaseURL returns baseURL. Needed for tests to substitute the [BaseURL] with test server.
 func (fp *FunpayClient) BaseURL() string {
 	fp.mu.RLock()
 	baseURL := fp.baseURL
@@ -203,25 +196,20 @@ func (fp *FunpayClient) BaseURL() string {
 	return baseURL
 }
 
-// SetBaseURL updates baseURL. Needed for tests to substitute the [BaseURL] with test server.
 func (fp *FunpayClient) SetBaseURL(baseURL string) {
 	fp.mu.Lock()
 	fp.baseURL = baseURL
 	fp.mu.Unlock()
 }
 
-// SetProxy sets or updates the HTTP proxy for the requests.
-// To remove proxy and make direct connections, pass nil.
 func (fp *FunpayClient) SetProxy(proxy *url.URL) {
 	fp.mu.Lock()
 	fp.proxy = proxy
 	fp.mu.Unlock()
 }
 
-// Update calls [Funpay.RequestHTML]. You should call it every 40-60 minutes to update PHPSESSIONID cookie.
-// [Funpay.Request] saves all cookies from response if they are not empty.
 func (fp *FunpayClient) Update(ctx context.Context) error {
-	const op = "Funpay.Update"
+	const op = "FunpayClient.Update"
 
 	_, err := fp.RequestHTML(ctx, fp.baseURL)
 	if err != nil {
@@ -231,9 +219,8 @@ func (fp *FunpayClient) Update(ctx context.Context) error {
 	return nil
 }
 
-// UpdateLocale calls [Funpay.RequestHTML] with setlocale query param.
 func (fp *FunpayClient) UpdateLocale(ctx context.Context, locale Locale) error {
-	const op = "Funpay.UpdateLocale"
+	const op = "FunpayClient.UpdateLocale"
 
 	reqURL, err := url.Parse(fp.baseURL)
 	if err != nil {
@@ -251,21 +238,8 @@ func (fp *FunpayClient) UpdateLocale(ctx context.Context, locale Locale) error {
 	return nil
 }
 
-// Request executes an HTTP request using the account's session.
-//
-// It handles:
-//   - Proxy configuration (if set),
-//   - Locale settings (path or query param),
-//   - Cookie management (session and golden key),
-//   - User-Agent header,
-//   - Response status code validation,
-//
-// Specific returns:
-//   - [*http.Response] and [ErrAccountUnauthorized] if status code equals 403,
-//   - [*http.Response] and [ErrToManyRequests] if status code equals 429,
-//   - [*http.Response] [ErrBadStatusCode] otherwise.
 func (fp *FunpayClient) Request(ctx context.Context, requestURL string, opts ...RequestOpt) (*http.Response, error) {
-	const op = "Funpay.Request"
+	const op = "FunpayClient.Request"
 
 	reqOpts := NewRequestOpts()
 
@@ -359,12 +333,8 @@ func (fp *FunpayClient) Request(ctx context.Context, requestURL string, opts ...
 	return resp, nil
 }
 
-// RequestHTML calls [Funpay.Request] and converting response as [*goquery.Document].
-// Updates [AppData] and account info (see [Funpay.Account]).
-//
-// Returns nil and [ErrAccountUnauthorized] if [Funpay.UserID] is zero.
 func (fp *FunpayClient) RequestHTML(ctx context.Context, requestURL string, opts ...RequestOpt) (*goquery.Document, error) {
-	const op = "Funpay.RequestHTML"
+	const op = "FunpayClient.RequestHTML"
 
 	resp, err := fp.Request(ctx, requestURL, opts...)
 	if err != nil {
@@ -393,11 +363,13 @@ func (fp *FunpayClient) RequestHTML(ctx context.Context, requestURL string, opts
 }
 
 func (fp *FunpayClient) updateUserData(doc *goquery.Document) error {
-	const op = "Funpay.updateUserData"
+	const op = "FunpayClient.updateUserData"
 	username := strings.TrimSpace(doc.Find(".user-link-name").First().Text())
+
 	rawBalance := doc.Find(".badge-balance").First().Text()
 	balanceStr := onlyDigitsRe.ReplaceAllString(rawBalance, "")
 	balanceStr = strings.TrimSpace(balanceStr)
+
 	var balance int64
 	if balanceStr != "" {
 		parsedBalance, err := strconv.ParseInt(balanceStr, 0, 64)
@@ -410,6 +382,7 @@ func (fp *FunpayClient) updateUserData(doc *goquery.Document) error {
 
 	fp.mu.Lock()
 	defer fp.mu.Unlock()
+
 	fp.username = username
 	fp.balance = balance
 
@@ -417,7 +390,7 @@ func (fp *FunpayClient) updateUserData(doc *goquery.Document) error {
 }
 
 func (fp *FunpayClient) updateAppData(doc *goquery.Document) error {
-	const op = "Funpay.updateAppData"
+	const op = "FunpayClient.updateAppData"
 
 	appDataRaw, ok := doc.Find("body").Attr("data-app-data")
 	if !ok {
@@ -430,10 +403,11 @@ func (fp *FunpayClient) updateAppData(doc *goquery.Document) error {
 	}
 
 	fp.mu.Lock()
+	defer fp.mu.Unlock()
+
 	fp.userID = appData.UserID
 	fp.locale = appData.Locale
 	fp.csrfToken = appData.CSRFToken
-	fp.mu.Unlock()
 
 	return nil
 }
