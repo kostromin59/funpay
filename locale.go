@@ -6,5 +6,4 @@ type Locale string
 const (
 	LocaleRU Locale = "ru"
 	LocaleEN Locale = "en"
-	LocaleUK Locale = "uk"
 )
