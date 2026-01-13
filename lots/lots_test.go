@@ -155,7 +155,7 @@ func TestLots_FieldsByOfferID(t *testing.T) {
 		fp.EXPECT().BaseURL().Times(1).Return("https://funpay.com")
 		fp.EXPECT().RequestHTML(
 			t.Context(),
-			"https://funpay.com/lots/offerEdit?node=something",
+			"https://funpay.com/lots/offerEdit?offer=something",
 		).Times(1).Return(nil, funpay.ErrAccountUnauthorized)
 
 		_, err := fpLots.FieldsByOfferID(t.Context(), "something")
@@ -185,7 +185,7 @@ func TestLots_FieldsByOfferID(t *testing.T) {
 		fp.EXPECT().BaseURL().Times(1).Return("https://funpay.com")
 		fp.EXPECT().RequestHTML(
 			t.Context(),
-			"https://funpay.com/lots/offerEdit?node=something",
+			"https://funpay.com/lots/offerEdit?offer=something",
 		).Times(1).Return(doc, nil)
 
 		fields, err := fpLots.FieldsByOfferID(t.Context(), "something")
@@ -222,7 +222,7 @@ func TestLots_FieldsByOfferID(t *testing.T) {
 		fp.EXPECT().BaseURL().Times(1).Return("https://funpay.com")
 		fp.EXPECT().RequestHTML(
 			t.Context(),
-			"https://funpay.com/lots/offerEdit?node=something",
+			"https://funpay.com/lots/offerEdit?offer=something",
 		).Times(1).Return(doc, nil)
 
 		fields, err := fpLots.FieldsByOfferID(t.Context(), "something")
@@ -260,10 +260,10 @@ func TestLots_FieldsByNodeID(t *testing.T) {
 		fp.EXPECT().BaseURL().Times(1).Return("https://funpay.com")
 		fp.EXPECT().RequestHTML(
 			t.Context(),
-			"https://funpay.com/lots/offerEdit?node=456",
+			"https://funpay.com/lots/offerEdit?node=something",
 		).Times(1).Return(doc, nil)
 
-		fields, err := fpLots.FieldsByNodeID(t.Context(), "456")
+		fields, err := fpLots.FieldsByNodeID(t.Context(), "something")
 		if err != nil {
 			t.Fatalf("LotFields failed: %v", err)
 		}
@@ -426,7 +426,7 @@ func TestLots_ByUser(t *testing.T) {
 			t.Fatalf("LotsByUser failed: %v", err)
 		}
 
-		expected := map[string][]string{
+		expected := map[lots.NodeID][]lots.OfferID{
 			"game1": {"1", "2"},
 			"game2": {"3"},
 		}
