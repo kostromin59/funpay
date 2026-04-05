@@ -109,7 +109,7 @@ func (l *LotsClient) FieldsByOfferID(ctx context.Context, offerID OfferID) (Fiel
 }
 
 func (l *LotsClient) FieldsByNodeID(ctx context.Context, nodeID NodeID) (Fields, error) {
-	const op = "LotsClient.FieldsByOfferID"
+	const op = "LotsClient.FieldsByNodeID"
 
 	fields, err := l.fields(ctx, nodeID, "")
 	if err != nil {

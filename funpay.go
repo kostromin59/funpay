@@ -63,11 +63,8 @@ type FunpayAuthHandler interface {
 }
 
 type FunpayUpdater interface {
-	// BaseURL returns clients baseURL. Needed for tests to substitute the [BaseURL] with test server.
+	// BaseURL returns client baseURL.
 	BaseURL() string
-
-	// SetBaseURL updates clients baseURL. Needed for tests to substitute the [BaseURL] with test server.
-	SetBaseURL(baseURL string)
 
 	// Update calls [FunpayRequester.RequestHTML]. You should call it every 40-60 minutes to update PHPSESSIONID cookie.
 	// [FunpayRequester.Request] saves all cookies from response if they are not empty.
@@ -80,10 +77,6 @@ type FunpayUpdater interface {
 type FunpayRequester interface {
 	// Cookies returns a safe copy of all session cookies.
 	Cookies() []*http.Cookie
-
-	// SetProxy sets or updates the HTTP proxy for the requests.
-	// To remove proxy and make direct connections, pass nil.
-	SetProxy(proxy *url.URL)
 
 	// Request executes an HTTP request using the account's session.
 	//
@@ -117,18 +110,28 @@ type FunpayClient struct {
 	balance  int64
 	locale   Locale
 
-	baseURL string
-	cookies []*http.Cookie
-	proxy   *url.URL
-	mu      sync.RWMutex
+	cookies    []*http.Cookie
+	baseURL    string
+	httpClient HTTPClient
+	mu         sync.RWMutex
 }
 
 // New creates a new instanse of [FunpayClient].
-func New(goldenKey, userAgent string) Funpay {
+func New(goldenKey, userAgent string, options ...opt) Funpay {
+	o := &opts{
+		baseURL:    BaseURL,
+		httpClient: new(http.Client),
+	}
+
+	for _, opt := range options {
+		opt(o)
+	}
+
 	return &FunpayClient{
-		goldenKey: goldenKey,
-		userAgent: userAgent,
-		baseURL:   BaseURL,
+		goldenKey:  goldenKey,
+		userAgent:  userAgent,
+		baseURL:    o.baseURL,
+		httpClient: o.httpClient,
 	}
 }
 
@@ -196,18 +199,6 @@ func (fp *FunpayClient) BaseURL() string {
 	return baseURL
 }
 
-func (fp *FunpayClient) SetBaseURL(baseURL string) {
-	fp.mu.Lock()
-	fp.baseURL = baseURL
-	fp.mu.Unlock()
-}
-
-func (fp *FunpayClient) SetProxy(proxy *url.URL) {
-	fp.mu.Lock()
-	fp.proxy = proxy
-	fp.mu.Unlock()
-}
-
 func (fp *FunpayClient) Update(ctx context.Context) error {
 	const op = "FunpayClient.Update"
 
@@ -243,23 +234,11 @@ func (fp *FunpayClient) Request(ctx context.Context, requestURL string, opts ...
 
 	reqOpts := NewRequestOpts()
 
-	if fp.proxy != nil {
-		opt := RequestWithProxy(fp.proxy)
-		opt(reqOpts)
-	}
-
 	for _, opt := range opts {
 		opt(reqOpts)
 	}
 
-	t := &http.Transport{}
-	if reqOpts.proxy != nil {
-		t.Proxy = http.ProxyURL(reqOpts.proxy)
-	}
-
-	c := &http.Client{
-		Transport: t,
-	}
+	c := fp.httpClient
 
 	reqURL, err := url.Parse(requestURL)
 	if err != nil {

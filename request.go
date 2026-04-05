@@ -4,7 +4,6 @@ import (
 	"errors"
 	"io"
 	"net/http"
-	"net/url"
 )
 
 var (
@@ -43,7 +42,6 @@ type RequestOpts struct {
 	body    io.Reader
 	cookies []*http.Cookie
 	headers map[string]string
-	proxy   *url.URL
 }
 
 // NewRequestOpts creates request options with defaults:
@@ -85,13 +83,5 @@ func RequestWithCookies(cookies []*http.Cookie) RequestOpt {
 func RequestWithHeaders(headers map[string]string) RequestOpt {
 	return func(options *RequestOpts) {
 		options.headers = headers
-	}
-}
-
-// RequestWithProxy overrides the account-level proxy for this request.
-// To disable proxy for single request: RequestWithProxy(nil)
-func RequestWithProxy(proxy *url.URL) RequestOpt {
-	return func(options *RequestOpts) {
-		options.proxy = proxy
 	}
 }
